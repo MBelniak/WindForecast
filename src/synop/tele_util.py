@@ -26,9 +26,13 @@ def add_hourly_wind_velocity(auto_station_df: pd.DataFrame, synop_df: pd.DataFra
             values.append(copy_synop_df.loc[copy_synop_df['date'] == date][synop_param].item())
         else:
             if auto_station_param == consts.AUTO_GUST[1]:
-                values.append("{:.1f}".format(auto_station_row[auto_station_param].item()))
+                auto_value = auto_station_row[auto_station_param].item()
             else:
-                values.append("{:.1f}".format(auto_station_row['convolved'].item()))
+                auto_value = auto_station_row['convolved'].item()
+            if pd.isna(auto_value):
+                values.append(copy_synop_df.loc[copy_synop_df['date'] == date][synop_param].item())
+            else:
+                values.append("{:.1f}".format(auto_value))
 
     synop_df[synop_param] = values
 
@@ -60,13 +64,15 @@ def add_hourly_direction(auto_station_df: pd.DataFrame, synop_df: pd.DataFrame):
             print(f"Auto station data not found for date {date}.")
             values.append(copy_synop_date.loc[copy_synop_date['date'] == date][consts.DIRECTION_COLUMN[1]].item())
         else:
-            convolved_cos = auto_station_row['convolved_cosinus']
-            convolved_sin = auto_station_row['convolved_sinus']
-
-            angle = math.atan2(convolved_sin.item(), convolved_cos.item())
-            angle *= 180 / math.pi
-            if angle < 0: angle += 360
-            values.append("{:.1f}".format(angle))
+            convolved_cos = auto_station_row['convolved_cosinus'].item()
+            convolved_sin = auto_station_row['convolved_sinus'].item()
+            if pd.isna(convolved_cos) or pd.isna(convolved_sin):
+                values.append(copy_synop_date.loc[copy_synop_date['date'] == date][consts.DIRECTION_COLUMN[1]].item())
+            else:
+                angle = math.atan2(convolved_sin, convolved_cos)
+                angle *= 180 / math.pi
+                if angle < 0: angle += 360
+                values.append("{:.1f}".format(angle))
 
     synop_df[consts.DIRECTION_COLUMN[1]] = values
 
@@ -82,12 +88,14 @@ def add_hourly_precipitation(auto_station_df: pd.DataFrame, synop_df: pd.DataFra
         auto_station_row = copy_auto_station_df.loc[copy_auto_station_df['date'] == date]
         if len(auto_station_row) == 0:
             print(f"Auto station data not found for date {date}.")
-            if PRECIPITATION[1] in copy_synop_date.columns:
-                values.append(copy_synop_date.loc[copy_synop_date['date'] == date][PRECIPITATION[1]].item())
-            else:
-                values.append(0)
+            values.append(copy_synop_date.loc[copy_synop_date['date'] == date][PRECIPITATION_6H[1]].item())
         else:
-            values.append("{:.1f}".format(auto_station_row[AUTO_HOUR_PRECIPITATION[1]].item()))
+            auto_value = auto_station_row[AUTO_HOUR_PRECIPITATION[1]].item()
+            if pd.isna(auto_value):
+                values.append(copy_synop_date.loc[copy_synop_date['date'] == date][PRECIPITATION_6H[1]].item())
+            else:
+                values.append("{:.1f}".format(auto_value))
+
     # TODO it should be precipitation
     synop_df[PRECIPITATION_6H[1]] = values
 

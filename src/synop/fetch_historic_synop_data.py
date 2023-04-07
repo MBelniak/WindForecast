@@ -189,6 +189,8 @@ def process_auto_station_data(from_year: int, until_year: int, localisation_code
     auto_station_dir = os.path.join(working_dir, 'auto_station_data')
     station_data = pd.DataFrame(columns=AUTO_STATION_CSV_COLUMNS)
     localisation_code = localisation_code.strip()
+    if os.path.exists(os.path.join(auto_station_dir, f"{localisation_name}_{localisation_code}_data.csv")):
+        return
 
     for year in tqdm.tqdm(range(from_year, until_year + 1)):
         for month in range(1, 13):
