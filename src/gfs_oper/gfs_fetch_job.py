@@ -12,11 +12,14 @@ from util.coords import Coords
 import pandas as pd
 
 
-def fetch_oper_gfs(config: Config) -> Union[pd.DataFrame, None]:
-    fetch_recent_gfs(config)
+def fetch_oper_gfs(config: Config, fetch_newest=True) -> Union[pd.DataFrame, None]:
+    if fetch_newest:
+        fetch_recent_gfs(config)
+
     latest_ready_forecast = process_recent_gfs(config)
     if latest_ready_forecast is None:
         return None
+
     init_meta = get_init_meta_from_init_string(latest_ready_forecast)
 
     data = None

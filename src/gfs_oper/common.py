@@ -33,11 +33,11 @@ class InitHour(Enum):
         utc_date = datetime.utcfromtimestamp(datetime.timestamp(date))
         hour = utc_date.hour
 
-        if 5 <= hour < 11:
+        if 4 <= hour < 10:
             return InitHour._00z
-        if 11 <= hour < 17:
+        if 10 <= hour < 16:
             return InitHour._06z
-        if 17 <= hour < 23:
+        if 16 <= hour < 22:
             return InitHour._12z
         return InitHour._18z
 

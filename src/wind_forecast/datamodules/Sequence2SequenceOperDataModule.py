@@ -205,7 +205,7 @@ class Sequence2SequenceOperDataModule(SplittableDataModule):
         gfs_config = GFSConfig(self.config.experiment.sequence_length - 5,
                                self.config.experiment.future_sequence_length + 5,
                                "download", "processed", self.target_coords)
-        self.gfs_data = fetch_oper_gfs(gfs_config)
+        self.gfs_data = fetch_oper_gfs(gfs_config, False)
         if self.gfs_data is None:
             raise Exception("GFS forecasts unavailable :(")
 
