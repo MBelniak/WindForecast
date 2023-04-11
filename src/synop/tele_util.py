@@ -96,7 +96,7 @@ def add_hourly_precipitation(auto_station_df: pd.DataFrame, synop_df: pd.DataFra
             else:
                 values.append("{:.1f}".format(auto_value))
 
-    values = np.array(values)
+    values = np.array(values, dtype=float)
     values[np.where(values > 80)] = 0
     values = values.tolist()
 

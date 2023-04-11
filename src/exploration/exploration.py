@@ -246,9 +246,7 @@ def explore_synop_patterns(data: pd.DataFrame, features: List[Tuple[int, str, st
         values = data[feature[2]].to_numpy()
         if np.isnan(np.sum(values)):
             features_with_nans.append(feature[2])
-        if feature[1] == 'precipitation_6h':
-            incorrect_precip = values[np.where(values > 80)]
-            print(incorrect_precip)
+
         sns.boxplot(x=values).set_title(f"{feature[2]}")
         os.makedirs(plot_dir, exist_ok=True)
         plt.savefig(os.path.join(plot_dir, 'plot-box.png'))
