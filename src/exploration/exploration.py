@@ -137,7 +137,7 @@ def get_synop_data(synop_filepath: str):
         raise Exception(f"CSV file with synop data does not exist at path {synop_filepath}.")
 
     data = prepare_synop_dataset(synop_filepath, list(list(zip(*SYNOP_TRAIN_FEATURES))[1]), norm=False,
-                                 dataset_dir=SYNOP_DATASETS_DIRECTORY, from_year=2016, to_year=2022, decompose_periodic=False)
+                                 dataset_dir=SYNOP_DATASETS_DIRECTORY, from_year=2015, to_year=2022, decompose_periodic=False)
 
     data["date"] = pd.to_datetime(data[['year', 'month', 'day', 'hour']])
     return data.rename(columns=dict(zip([f[1] for f in SYNOP_TRAIN_FEATURES], [f[2] for f in SYNOP_TRAIN_FEATURES])))
@@ -173,7 +173,7 @@ def prepare_gfs_data_with_wind_components(gfs_data: pd.DataFrame, feature_names:
 def explore_data_for_each_gfs_param(all_gfs_data: pd.DataFrame, feature_names: List[str]):
     for parameter in tqdm(feature_names):
         min_value, max_value = None, None
-        plot_dir = os.path.join('plots', parameter)
+        plot_dir = os.path.join('plots_gfs', parameter)
         values = all_gfs_data[parameter].values
         values = values.flatten()
         if min_value is None or min_value > min(values):
@@ -234,7 +234,7 @@ def plot_acf_and_pacf(data: pd.DataFrame, feature: Tuple, plot_dir: str):
     plt.close(fig)
 
 
-def explore_synop_patterns(data: pd.DataFrame, features: (int, str), localisation_name: str):
+def explore_synop_patterns(data: pd.DataFrame, features: List[Tuple[int, str, str]], localisation_name: str):
     features_with_nans = []
 
     for feature in features:
@@ -244,12 +244,15 @@ def explore_synop_patterns(data: pd.DataFrame, features: (int, str), localisatio
 
         plot_dir = os.path.join('plots-synop', localisation_name, feature[1])
         values = data[feature[2]].to_numpy()
-        # if np.isnan(np.sum(values)):
-        #     features_with_nans.append(feature[2])
-        # sns.boxplot(x=values).set_title(f"{feature[2]}")
-        # os.makedirs(plot_dir, exist_ok=True)
-        # plt.savefig(os.path.join(plot_dir, 'plot-box.png'))
-        # plt.close()
+        if np.isnan(np.sum(values)):
+            features_with_nans.append(feature[2])
+        if feature[1] == 'precipitation_6h':
+            incorrect_precip = values[np.where(values > 80)]
+            print(incorrect_precip)
+        sns.boxplot(x=values).set_title(f"{feature[2]}")
+        os.makedirs(plot_dir, exist_ok=True)
+        plt.savefig(os.path.join(plot_dir, 'plot-box.png'))
+        plt.close()
         # #
         # stationarity_test = adfuller(values)
         # print(f"Stationarity test for {feature[1]}")
@@ -259,14 +262,14 @@ def explore_synop_patterns(data: pd.DataFrame, features: (int, str), localisatio
         # for key, value in stationarity_test[4].items():
         #     print('\t%s: %.3f' % (key, value))
         #
-        # _, ax = plt.subplots(figsize=(30, 15))
-        # ax.set_xlabel('Data', fontsize=38)
-        # ax.set_ylabel(feature[2], fontsize=38)
-        # ax.tick_params(axis='both', which='major', labelsize=34)
-        # sns.lineplot(ax=ax, data=data[['date', feature[2]]], x='date', y=feature[2])
-        # os.makedirs(plot_dir, exist_ok=True)
-        # plt.savefig(os.path.join(plot_dir, 'plot-line.png'))
-        # plt.close()
+        _, ax = plt.subplots(figsize=(30, 15))
+        ax.set_xlabel('Data', fontsize=38)
+        ax.set_ylabel(feature[2], fontsize=38)
+        ax.tick_params(axis='both', which='major', labelsize=34)
+        sns.lineplot(ax=ax, data=data[['date', feature[2]]], x='date', y=feature[2])
+        os.makedirs(plot_dir, exist_ok=True)
+        plt.savefig(os.path.join(plot_dir, 'plot-line.png'))
+        plt.close()
 
         plot_acf_and_pacf(data, feature, plot_dir)
 
@@ -368,7 +371,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-synop_csv', help='Path to a CSV file with synop data',
-                        default=os.path.join(SYNOP_DATASETS_DIRECTORY, 'WARSZAWA-OKECIE_352200375_data.csv'), type=str)
+                        default=os.path.join(SYNOP_DATASETS_DIRECTORY, 'KOZIENICE_351210488_data.csv'), type=str)
     parser.add_argument('--skip_gfs', help='Skip GFS dataset.', action='store_true')
     parser.add_argument('-target_coords', help='Coordinates of the target station.', default=(52.1831174, 20.9875259),
                         type=tuple)
