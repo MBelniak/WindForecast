@@ -13,6 +13,7 @@ from synop.consts import TEMPERATURE, DEW_POINT, HUMIDITY, DIRECTION_COLUMN, VEL
     PRESSURE_AT_SEA_LEVEL, PRECIPITATION_6H, CLOUD_COVER, LOWER_CLOUDS, VISIBILITY, AUTO_HOUR_PRECIPITATION, \
     AUTO_WIND_DIRECTION, AUTO_WIND, AUTO_GUST
 from synop.tele_util import add_hourly_wind_velocity, add_hourly_direction, add_hourly_precipitation
+from util.coords import Coords
 
 OGIMET_URL_TEMPLATE = "https://ogimet.com/cgi-bin/gsynres?ind={0}&lang=en&decoded=yes&ndays=1&ano={1}&mes={2}&day={3}&hora={4}"
 TELEMETRY_URL = "https://hydro.imgw.pl/api/station/meteo/?id={0}"
@@ -103,14 +104,14 @@ def fill_df_with_telemetric_data(df, tele_station_code: str) -> pd.DataFrame:
     return df
 
 
-def fetch_recent_synop(station_code: str, tele_station_code: str) -> Union[pd.DataFrame, None]:
-    with open(os.path.join(Path(__file__).parent, "..", "gfs_oper", "processed", "available_starting_points.txt"), 'r') as f:
+def fetch_recent_synop(station_code: str, tele_station_code: str, coords: Coords) -> Union[pd.DataFrame, None]:
+    with open(os.path.join(Path(__file__).parent, "..", "gfs_oper", "processed", f"available_starting_points_{coords.nlat}_{coords.wlon}.txt"), 'r') as f:
         for line in f:
             pass
         latest_available_starting_point = line
 
     final_csv = os.path.join(Path(__file__).parent, "oper_data", latest_available_starting_point.replace(":", "_").replace("\n", ""),
-                             "data.csv")
+                             f"{station_code}_data.csv")
 
     if os.path.exists(final_csv):
         csv = pd.read_csv(final_csv).reset_index().drop('index', axis=1)
@@ -185,12 +186,15 @@ def main():
     parser.add_argument('--tele_station_code',
                         help='Localisation code for telemetric station which to get data from.',
                         required=True, type=str)
+    parser.add_argument('--target_coords',
+                        help='Coordinates of the station. The same as passed to gfs oper fetch job.',
+                        required=True, type=tuple)
     parser.add_argument('--localisation_name',
                         help='Localisation name for which to get data. Will be used to generate final files name.',
                         default=None,
                         type=str)
     args = parser.parse_args()
-    fetch_recent_synop(args.station_code, args.tele_station_code)
+    fetch_recent_synop(args.station_code, args.tele_station_code, args.target_coords)
 
 
 if __name__ == "__main__":

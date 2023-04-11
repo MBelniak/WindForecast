@@ -3,7 +3,7 @@
 python -m wind_forecast.main experiment=nbeatsx_gfs optim=adam experiment.target_parameter=temperature \
 experiment.dropout=0.2 optim.base_lr=0.002 experiment.nbeats_num_blocks=[8,8] experiment.nbeats_num_layers=[8,8] \
 experiment.nbeats_num_hidden=32 experiment.tcn_channels=[32,64] experiment.use_time2vec=False experiment.use_value2vec=False \
-experiment.epochs=20 experiment.num_workers=16 experiment.resume_checkpoint=wandb://mbelniak/wind-forecast-openstack/model-225mtjos:v0@model.ckpt
+experiment.epochs=20 experiment.num_workers=16
 
 python -m wind_forecast.main experiment=nbeatsx_gfs optim=adam experiment.target_parameter=temperature \
 experiment.dropout=0.2 optim.base_lr=0.002 experiment.nbeats_num_blocks=[8,8] experiment.nbeats_num_layers=[8,8] \
@@ -257,39 +257,39 @@ experiment.num_workers=16 experiment.sequence_length=48
 
 #Spacetimeformer
 python -m wind_forecast.main experiment=spacetimeformer_gfs optim=adam experiment.target_parameter=temperature \
-experiment.dropout=0.5 optim.base_lr=0.001 experiment.transformer_ff_dim=256 \
-experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=8 \
-experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,128,32] \
+experiment.dropout=0.2 optim.base_lr=0.002 experiment.transformer_ff_dim=128 \
+experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=2 \
+experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,32] \
 experiment.epochs=20 experiment.num_workers=16
 
 python -m wind_forecast.main experiment=spacetimeformer_gfs optim=adam experiment.target_parameter=temperature \
-experiment.dropout=0.5 optim.base_lr=0.001 experiment.transformer_ff_dim=256 \
-experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=8 \
-experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,128,32] \
+experiment.dropout=0.2 optim.base_lr=0.002 experiment.transformer_ff_dim=128 \
+experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=2 \
+experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,32] \
 experiment.epochs=20 experiment.num_workers=16 experiment.sequence_length=48
 
 python -m wind_forecast.main experiment=spacetimeformer_gfs optim=adam experiment.target_parameter=wind_velocity \
-experiment.dropout=0.5 optim.base_lr=0.001 experiment.transformer_ff_dim=256 \
-experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=8 \
-experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,128,32] \
+experiment.dropout=0.2 optim.base_lr=0.002 experiment.transformer_ff_dim=128 \
+experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=2 \
+experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,32] \
 experiment.epochs=20 experiment.num_workers=16
 
 python -m wind_forecast.main experiment=spacetimeformer_gfs optim=adam experiment.target_parameter=wind_velocity \
-experiment.dropout=0.5 optim.base_lr=0.001 experiment.transformer_ff_dim=256 \
-experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=8 \
-experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,128,32] \
+experiment.dropout=0.2 optim.base_lr=0.002 experiment.transformer_ff_dim=128 \
+experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=2 \
+experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,32] \
 experiment.epochs=20 experiment.num_workers=16 experiment.sequence_length=48
 
 python -m wind_forecast.main experiment=spacetimeformer_gfs optim=adam experiment.target_parameter=pressure \
-experiment.dropout=0.5 optim.base_lr=0.001 experiment.transformer_ff_dim=256 \
-experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=8 \
-experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,128,32] \
+experiment.dropout=0.2 optim.base_lr=0.002 experiment.transformer_ff_dim=128 \
+experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=2 \
+experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,32] \
 experiment.epochs=20 experiment.num_workers=16
 
 python -m wind_forecast.main experiment=spacetimeformer_gfs optim=adam experiment.target_parameter=pressure \
-experiment.dropout=0.5 optim.base_lr=0.001 experiment.transformer_ff_dim=256 \
-experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=8 \
-experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,128,32] \
+experiment.dropout=0.2 optim.base_lr=0.002 experiment.transformer_ff_dim=128 \
+experiment.transformer_encoder_layers=2 experiment.transformer_decoder_layers=2 \
+experiment.use_time2vec=False experiment.use_value2vec=False experiment.regressor_head_dims=[64,32] \
 experiment.epochs=20 experiment.num_workers=16 experiment.sequence_length=48
 
 #GFS

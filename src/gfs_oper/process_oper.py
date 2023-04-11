@@ -73,18 +73,18 @@ def process_all_needed_gribs(init_meta: InitMeta, config: Config) -> None:
     process_past_gribs(init_meta, config)
 
 
-def save_info(init_meta, processing_output_path):
-    os.makedirs(os.path.dirname(available_starting_points_path(processing_output_path)), exist_ok=True)
-    with open(available_starting_points_path(processing_output_path), 'a') as f:
+def save_info(init_meta, config: Config):
+    os.makedirs(os.path.dirname(available_starting_points_path(config.processing_output_path, config.target_coords)), exist_ok=True)
+    with open(available_starting_points_path(config.processing_output_path, config.target_coords), 'a') as f:
         f.write(init_meta.get_date_string() + "\n")
 
 
-def available_starting_points_path(processing_output_path: str) -> str:
-    return os.path.join(Path(__file__).parent, processing_output_path, "available_starting_points.txt")
+def available_starting_points_path(processing_output_path: str, coords: Coords) -> str:
+    return os.path.join(Path(__file__).parent, processing_output_path, f"available_starting_points_{coords.nlat}_{coords.wlon}.txt")
 
 
-def is_forecast_ready(init_meta: InitMeta, processing_output_path: str) -> Union[str, None]:
-    records_file = available_starting_points_path(processing_output_path)
+def is_forecast_ready(init_meta: InitMeta, config: Config) -> Union[str, None]:
+    records_file = available_starting_points_path(config.processing_output_path, config.target_coords)
     if os.path.exists(records_file):
         with open(records_file, 'r') as f:
             for line in f:
@@ -103,7 +103,7 @@ def process_recent_gfs(config: Config) -> Union[str, None]:
     init_meta = get_init_meta(current_date)
     past_init_meta = get_init_meta(current_date)
 
-    latest_ready_forecast = is_forecast_ready(init_meta, config.processing_output_path)
+    latest_ready_forecast = is_forecast_ready(init_meta, config)
     if latest_ready_forecast is not None:
         return latest_ready_forecast
 
@@ -115,7 +115,7 @@ def process_recent_gfs(config: Config) -> Union[str, None]:
         forecast_available = True
         for offset in range(0, config.future_sequence_length):
             if not os.path.exists(GribResource(init_meta, offset).get_output_location(config.download_path)):
-                latest_ready_forecast = is_forecast_ready(init_meta, config.processing_output_path)
+                latest_ready_forecast = is_forecast_ready(init_meta, config)
                 if latest_ready_forecast is not None:
                     forecast_ready = True
                     break
@@ -151,7 +151,7 @@ def process_recent_gfs(config: Config) -> Union[str, None]:
 
     if forecast_available:
         process_all_needed_gribs(init_meta, config)
-        save_info(init_meta, config.processing_output_path)
+        save_info(init_meta, config)
         return init_meta.get_date_string()
 
     return None

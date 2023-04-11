@@ -81,7 +81,7 @@ class Sequence2SequenceOperDataModule(SplittableDataModule):
             self.prepare_gfs()
 
         self.synop_data = fetch_recent_synop(self.config.experiment.synop_station_code,
-                                             self.config.experiment.tele_station_code)
+                                             self.config.experiment.tele_station_code, self.target_coords)
         self.synop_data = self.synop_data.tail(self.sequence_length).reset_index()
 
         self.synop_data = decompose_periodic_features(self.synop_data, self.synop_feature_names)
