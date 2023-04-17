@@ -21,7 +21,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from wind_forecast.loaders.GFSLoader import GFSLoader
-from synop.consts import SYNOP_FEATURES
+from synop.consts import SYNOP_FEATURES, TEMPERATURE, VELOCITY_COLUMN, PRESSURE, LOWER_CLOUDS
 from scipy.interpolate import CubicSpline
 from wind_forecast.consts import NETCDF_FILE_REGEX, DATE_KEY_REGEX
 from gfs_archive_0_25.utils import get_nearest_coords
@@ -501,10 +501,10 @@ def target_param_to_gfs_name_level(target_param: str):
 
 def get_gfs_target_param(target_param: str):
     return {
-            'temperature': 'TMP_HTGL_2',
-            'wind_velocity': 'wind-velocity',
-            'pressure': 'PRES_SFC_0',
-            'lower_clouds': 'T CDC_LCY_0'
+            TEMPERATURE[1]: 'TMP_HTGL_2',
+            VELOCITY_COLUMN[1]: 'wind-velocity',
+            PRESSURE[1]: 'PRES_SFC_0',
+            LOWER_CLOUDS[1]: 'T CDC_LCY_0'
         }[target_param]
 
 

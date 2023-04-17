@@ -15,7 +15,7 @@ from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from gfs_archive_0_25.gfs_processor.own_logger import get_logger
 from util.coords import Coords
 from wind_forecast.consts import SYNOP_DATASETS_DIRECTORY
-from synop.consts import SYNOP_TRAIN_FEATURES, TEMPERATURE, VELOCITY_COLUMN, PRESSURE, DIRECTION_COLUMN
+from synop.consts import SYNOP_TRAIN_FEATURES, TEMPERATURE, VELOCITY_COLUMN, PRESSURE, DIRECTION_COLUMN, LOWER_CLOUDS
 from wind_forecast.preprocess.synop.synop_preprocess import prepare_synop_dataset
 from wind_forecast.util.df_util import resolve_indices
 from wind_forecast.util.gfs_util import GFS_DATASET_DIR, get_available_numpy_files, GFSUtil, get_gfs_target_param, \
@@ -311,52 +311,57 @@ def plot_diff_line(x, y, xlabel, ylabel, parameter: str):
                 bbox_inches='tight')
 
 
-def explore_gfs_bias(all_synop_data: pd.DataFrame, all_gfs_data: pd.DataFrame):
-    gfs_targets = all_gfs_data[get_gfs_target_param(TEMPERATURE[1])].values
-    synop_targets = all_synop_data[TEMPERATURE[2]].values
-    gfs_targets -= 273.15 # convert K to C
+def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame, features: List[Tuple[str, str]]):
+    for feature in features:
+        if feature[0] == TEMPERATURE[1]:
+            predictions = predicted_data[feature[1]].values
+            synop_targets = all_synop_data[feature[0]].values
 
-    diff = gfs_targets - synop_targets
-    plot_diff_hist(diff, 'Różnica, K', 'Liczebność', TEMPERATURE[2])
+            diff = predictions - synop_targets
+            plot_diff_hist(diff, 'Różnica, K', 'Liczebność', feature[0])
 
-    gfs_targets = all_gfs_data[get_gfs_target_param(VELOCITY_COLUMN[1])].values
-    synop_targets = all_synop_data[VELOCITY_COLUMN[2]].values
+            if DIRECTION_COLUMN[1] in [f[0] for f in features]:
+                synop_temp = all_synop_data[[feature[0], DIRECTION_COLUMN[1]]]
+                gfs_targets = predicted_data[feature[1]].values
 
-    diff = gfs_targets - synop_targets
-    plot_diff_hist(diff, 'Różnica, m/s', 'Liczebność', VELOCITY_COLUMN[2])
+                plot_diff_line(x=synop_temp[DIRECTION_COLUMN[1]],
+                               y=gfs_targets - synop_temp[feature[0]],
+                               xlabel='Kierunek wiatru, °',
+                               ylabel='Różnica, K',
+                               parameter=feature[0])
 
-    gfs_targets = all_gfs_data[get_gfs_target_param(PRESSURE[1])].values
-    gfs_targets /= 100
-    synop_targets = all_synop_data[PRESSURE[2]].values
-    diff = gfs_targets - synop_targets
-    plot_diff_hist(diff, 'Różnica, hPa', 'Liczebność', PRESSURE[2])
+        elif feature[0] == VELOCITY_COLUMN[1]:
+            predictions = predicted_data[feature[1]].values
+            synop_targets = all_synop_data[feature[0]].values
 
-    synop_wind = all_synop_data[[VELOCITY_COLUMN[2], DIRECTION_COLUMN[2]]]
-    gfs_targets = all_gfs_data[get_gfs_target_param(VELOCITY_COLUMN[1])].values
+            diff = predictions - synop_targets
+            plot_diff_hist(diff, 'Różnica, m/s', 'Liczebność', feature[0])
 
-    plot_diff_line(x=synop_wind[DIRECTION_COLUMN[2]],
-                   y=gfs_targets - synop_wind[VELOCITY_COLUMN[2]],
-                   xlabel='Kierunek wiatru, °',
-                   ylabel='Różnica, m/s',
-                   parameter=VELOCITY_COLUMN[2])
+            if DIRECTION_COLUMN[1] in [f[0] for f in features]:
+                synop_wind = all_synop_data[[feature[0], DIRECTION_COLUMN[1]]]
+                predictions = predicted_data[feature[1]].values
 
-    synop_temp = all_synop_data[[TEMPERATURE[2], DIRECTION_COLUMN[2]]]
-    gfs_targets = all_gfs_data[get_gfs_target_param(TEMPERATURE[1])].values
+                plot_diff_line(x=synop_wind[DIRECTION_COLUMN[1]],
+                               y=predictions - synop_wind[feature[0]],
+                               xlabel='Kierunek wiatru, °',
+                               ylabel='Różnica, m/s',
+                               parameter=VELOCITY_COLUMN[2])
 
-    plot_diff_line(x=synop_temp[DIRECTION_COLUMN[2]],
-                   y=gfs_targets - synop_temp[TEMPERATURE[2]],
-                   xlabel='Kierunek wiatru, °',
-                   ylabel='Różnica, K',
-                   parameter=TEMPERATURE[2])
+        elif feature[0] == PRESSURE[1]:
+            predictions = predicted_data[feature[1]].values
+            synop_targets = all_synop_data[feature[0]].values
+            diff = predictions - synop_targets
+            plot_diff_hist(diff, 'Różnica, hPa', 'Liczebność', feature[0])
 
-    synop_temp = all_synop_data[[PRESSURE[2], DIRECTION_COLUMN[2]]]
-    gfs_targets = all_gfs_data[get_gfs_target_param(PRESSURE[1])].values
+            if DIRECTION_COLUMN[1] in [f[0] for f in features]:
+                synop_temp = all_synop_data[[feature[0], DIRECTION_COLUMN[1]]]
+                predictions = predicted_data[feature[1]].values
 
-    plot_diff_line(x=synop_temp[DIRECTION_COLUMN[2]],
-                   y=gfs_targets - synop_temp[PRESSURE[2]],
-                   xlabel='Kierunek wiatru, °',
-                   ylabel='Różnica, hPa',
-                   parameter=PRESSURE[2])
+                plot_diff_line(x=synop_temp[DIRECTION_COLUMN[1]],
+                               y=predictions - synop_temp[feature[0]],
+                               xlabel='Kierunek wiatru, °',
+                               ylabel='Różnica, hPa',
+                               parameter=PRESSURE[2])
 
 
 def explore_synop(synop_file: str):
@@ -369,9 +374,9 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-synop_csv', help='Path to a CSV file with synop data',
-                        default=os.path.join(SYNOP_DATASETS_DIRECTORY, 'KOZIENICE_351210488_data.csv'), type=str)
+                        default=os.path.join(SYNOP_DATASETS_DIRECTORY, 'USTKA_354160115_data.csv'), type=str)
     parser.add_argument('--skip_gfs', help='Skip GFS dataset.', action='store_true')
-    parser.add_argument('-target_coords', help='Coordinates of the target station.', default=(52.1831174, 20.9875259),
+    parser.add_argument('-target_coords', help='Coordinates of the target station.', default=(54.5884822, 16.8542177),
                         type=tuple)
 
     args = parser.parse_args()
@@ -391,7 +396,14 @@ def main():
 
         explore_data_for_each_gfs_param(gfs_data, feature_names)
         explore_gfs_correlations()
-        explore_gfs_bias(all_synop_data, gfs_data)
+        all_synop_data = all_synop_data.rename(columns=dict(zip([f[2] for f in SYNOP_TRAIN_FEATURES], [f[1] for f in SYNOP_TRAIN_FEATURES])))
+        gfs_data[get_gfs_target_param(TEMPERATURE[1])] -= 273.15
+        gfs_data[get_gfs_target_param(PRESSURE[1])] /= 100
+        explore_data_bias(all_synop_data, gfs_data, [
+            (TEMPERATURE[1], 'TMP_HTGL_2'),
+            (VELOCITY_COLUMN[1], 'wind-velocity'),
+            (PRESSURE[1], 'PRES_SFC_0'),
+            (LOWER_CLOUDS[1], 'T CDC_LCY_0')])
     explore_synop(args.synop_csv)
 
 

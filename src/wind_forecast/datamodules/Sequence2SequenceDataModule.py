@@ -319,19 +319,24 @@ class Sequence2SequenceDataModule(SplittableDataModule):
         return new_gfs_features_names
 
     def eliminate_gfs_bias(self):
-        target_mean = self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset").mean[self.target_param]
-        target_std = self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset").std[self.target_param]
+        train_concat_dataset = self.dataset_train.dataset
+        train_synop_dataset = train_concat_dataset.get_dataset("Sequence2SequenceSynopDataset")
+        train_synop_data = train_synop_dataset.synop_data
+        train_gfs_dataset = train_concat_dataset.get_dataset("Sequence2SequenceGFSDataset")
+        train_gfs_data = train_gfs_dataset.gfs_data
+        target_mean = train_synop_dataset.mean[self.target_param]
+        target_std = train_synop_dataset.std[self.target_param]
 
         # we can check what is the mean GFS error and just add it to target values to improve performance. We assume we know only train data
-        train_indices = [self.dataset_train.dataset.data[index] for index in self.dataset_train.indices]
-        all_gfs_data = resolve_indices(self.dataset_train.dataset.gfs_data, train_indices,
+        train_indices = [train_synop_dataset.data[index] for index in self.dataset_train.indices]
+        all_gfs_data = resolve_indices(train_gfs_data, train_indices,
                                        self.sequence_length + self.prediction_offset + self.future_sequence_length)
-        targets = all_gfs_data[self.gfs_target_param].values
-        all_synop_data = resolve_indices(self.dataset_train.dataset.synop_data, train_indices,
+        gfs_targets = all_gfs_data[self.gfs_target_param].values
+        all_synop_data = resolve_indices(train_synop_data, train_indices,
                                          self.sequence_length + self.prediction_offset + self.future_sequence_length)
         synop_targets = all_synop_data[self.target_param].values
 
-        real_gfs_train_targets = targets * target_std + target_mean
+        real_gfs_train_targets = gfs_targets * target_std + target_mean
 
         real_diff = (synop_targets * target_std + target_mean - real_gfs_train_targets)
 
@@ -343,12 +348,40 @@ class Sequence2SequenceDataModule(SplittableDataModule):
 
         os.makedirs(os.path.join(Path(__file__).parent, "plots"), exist_ok=True)
         plt.savefig(
-            os.path.join(Path(__file__).parent, "plots", f"gfs_diff_{self.config.experiment.target_parameter}.png"),
+            os.path.join(Path(__file__).parent, "plots", f"gfs_diff_{self.config.experiment.target_parameter}_train.png"),
             dpi=200, bbox_inches='tight')
 
         bias = real_diff.mean(axis=0)
-        real_gfs_targets = self.dataset_test.dataset.gfs_data[self.gfs_target_param] * target_std + target_mean
-        self.dataset_test.dataset.gfs_data[self.gfs_target_param] = (real_gfs_targets + bias - target_mean) / target_std
+        test_synop_dataset = self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")
+        test_synop_data = test_synop_dataset.synop_data
+        test_gfs_dataset = self.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset")
+        test_gfs_data = test_gfs_dataset.gfs_data
+
+        real_gfs_targets = test_gfs_data[self.gfs_target_param] * target_std + target_mean
+        fixed_gfs_targets = real_gfs_targets + bias
+        test_gfs_data[self.gfs_target_param] = (fixed_gfs_targets - target_mean) / target_std
+
+        test_indices = [test_synop_dataset.data[index] for index in self.dataset_test.indices]
+        all_gfs_data = resolve_indices(test_gfs_data, test_indices,
+                                       self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        gfs_test_targets = all_gfs_data[self.gfs_target_param].values
+        real_gfs_test_targets = gfs_test_targets * target_std + target_mean
+
+        all_synop_data = resolve_indices(test_synop_data, test_indices,
+                                         self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        synop_targets = all_synop_data[self.target_param].values
+
+        test_diff = (synop_targets * target_std + target_mean - real_gfs_test_targets)
+
+        plt.figure(figsize=(20, 10))
+        plt.tight_layout()
+        sns.displot(test_diff, bins=100, kde=True)
+        plt.ylabel('Liczebność')
+        plt.xlabel('Różnica')
+
+        plt.savefig(
+            os.path.join(Path(__file__).parent, "plots", f"gfs_diff_{self.config.experiment.target_parameter}_test.png"),
+            dpi=200, bbox_inches='tight')
 
     def log_dataset_info(self):
         log.info('Dataset train len: ' + str(len(self.dataset_train)))
