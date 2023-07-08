@@ -15,11 +15,11 @@ from wandb.sdk.wandb_run import Run
 
 from wind_forecast.config.register import Config, register_configs, get_tags
 from wind_forecast.datamodules import SplittableDataModule
+from wind_forecast.plotting.plots import plot_results, plot_predict
 from wind_forecast.runs_analysis import run_analysis
 from wind_forecast.util.callbacks import CustomCheckpointer, get_resume_checkpoint
 from wind_forecast.util.common_util import NormalizationType
 from wind_forecast.util.logging import log
-from wind_forecast.util.plots import plot_results, plot_predict
 from wind_forecast.util.rundir import setup_rundir
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -87,6 +87,7 @@ def init_wandb():
                name=RUN_NAME)
 
     return wandb_logger
+
 
 def run_tune(cfg: Config):
     def objective(trial: optuna.trial.Trial, datamodule: LightningDataModule):
@@ -264,6 +265,7 @@ def run_training(cfg):
     if trainer.interrupted:  # type: ignore
         log.info(f'[bold red]>>> Training interrupted.')
         run.finish(exit_code=255)
+
 
 def run_predict(cfg: Config):
     RUN_NAME = os.getenv('RUN_NAME')

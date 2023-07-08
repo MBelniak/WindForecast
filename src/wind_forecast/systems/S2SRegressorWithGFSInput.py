@@ -1,12 +1,15 @@
 from __future__ import annotations
 import pandas as pd
 import math
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import numpy as np
 import torch
 
+from synop.consts import DIRECTION_COLUMN
 from wind_forecast.consts import BatchKeys
+from wind_forecast.preprocess.synop.synop_preprocess import get_feature_names_after_periodic_reduction
 from wind_forecast.systems.BaseS2SRegressor import BaseS2SRegressor
+from wind_forecast.util.df_util import add_angle_from_sin_cos_to_df
 
 
 class S2SRegressorWithGFSInput(BaseS2SRegressor):
@@ -58,6 +61,7 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
         gfs_targets = batch[BatchKeys.GFS_FUTURE_Y.value]
 
         return {BatchKeys.SYNOP_FUTURE_Y.value: targets,
+                BatchKeys.SYNOP_FUTURE_X.value: batch[BatchKeys.SYNOP_FUTURE_X.value],
                 BatchKeys.PREDICTIONS.value: outputs.squeeze() if not self.categorical_experiment else torch.argmax(outputs, dim=-1),
                 BatchKeys.SYNOP_PAST_Y.value: past_targets,
                 BatchKeys.DATES_PAST.value: dates_inputs,
@@ -97,7 +101,15 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
             gfs_targets = [item.cpu() for sublist in [x[BatchKeys.GFS_FUTURE_Y.value] for x in outputs] for item in
                            sublist]
         output_series = np.asarray([np.asarray(el) for el in predictions])
-        labels_series = np.asarray([np.asarray(el) for el in series[BatchKeys.SYNOP_FUTURE_Y.value]])
+        truth_series = np.asarray([np.asarray(el) for el in series[BatchKeys.SYNOP_FUTURE_Y.value]])
+
+        truth_direction_series = np.asarray([np.asarray(el[:, self.direction_param_indices]) for el in series[BatchKeys.SYNOP_FUTURE_X.value]])
+
+        truth_direction_df = pd.DataFrame(
+            zip(truth_direction_series[:, :, 0].flatten(), truth_direction_series[:, :, 1].flatten()),
+            columns=get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]]))
+        add_angle_from_sin_cos_to_df(truth_direction_df)
+
         gfs_targets = np.asarray([np.asarray(el) for el in gfs_targets])
         past_truth_series = np.asarray([np.asarray(el) for el in series[BatchKeys.SYNOP_PAST_Y.value]])
 
@@ -106,7 +118,7 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
             gfs_corrs.append(np.corrcoef(gfs_targets[index], output_series[index])[0, 1])
 
         gfs_corr = np.mean(gfs_corrs)
-        rmse_by_step = np.sqrt(np.mean(np.power(np.subtract(output_series, labels_series), 2), axis=0))
+        rmse_by_step = np.sqrt(np.mean(np.power(np.subtract(output_series, truth_series), 2), axis=0))
         mase_by_step = self.get_mase_by_step(predictions, series[BatchKeys.SYNOP_FUTURE_Y.value], series[BatchKeys.SYNOP_PAST_Y.value])
 
         # for plots
@@ -125,7 +137,7 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
             plot_prediction_dates.append(sample_prediction_dates)
 
             plot_prediction_series.append(output_series[index])
-            plot_truth_series.append(np.concatenate([past_truth_series[index], labels_series[index]], 0).tolist())
+            plot_truth_series.append(np.concatenate([past_truth_series[index], truth_series[index]], 0).tolist())
             plot_gfs_targets.append(gfs_targets[index])
 
         return {
@@ -143,5 +155,6 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
             'plot_gfs_targets': plot_gfs_targets,
             'output_series': output_series,
             'gfs_targets': gfs_targets,
-            'truth_series': labels_series
+            'truth_series': truth_series,
+            'truth_direction_series': truth_direction_df[DIRECTION_COLUMN[1]].values,
         }

@@ -1,16 +1,20 @@
+import math
 import os
 from itertools import chain
 from pathlib import Path
 from typing import Optional, Tuple, List
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
-from synop.consts import SYNOP_PERIODIC_FEATURES, LOWER_CLOUDS, CLOUD_COVER
+from exploration.exploration import explore_data_for_each_gfs_param, explore_data_bias
+from synop.consts import SYNOP_PERIODIC_FEATURES, LOWER_CLOUDS, CLOUD_COVER, TEMPERATURE, VELOCITY_COLUMN, PRESSURE, \
+    DIRECTION_COLUMN
 from util.coords import Coords
 from wind_forecast.config.register import Config
 from wind_forecast.consts import BatchKeys
@@ -20,10 +24,11 @@ from wind_forecast.datasets.ConcatDatasets import ConcatDatasets
 from wind_forecast.datasets.Sequence2SequenceGFSDataset import Sequence2SequenceGFSDataset
 from wind_forecast.datasets.Sequence2SequenceSynopDataset import Sequence2SequenceSynopDataset
 from wind_forecast.preprocess.synop.synop_preprocess import prepare_synop_dataset, \
-    modify_feature_names_after_periodic_reduction
+    get_feature_names_after_periodic_reduction
 from wind_forecast.util.common_util import NormalizationType
 from wind_forecast.util.config import process_config
-from wind_forecast.util.df_util import normalize_data_for_training, decompose_data, resolve_indices
+from wind_forecast.util.df_util import normalize_data_for_training, decompose_data, resolve_indices, \
+    add_angle_from_sin_cos_to_df
 from wind_forecast.util.gfs_util import add_param_to_train_params, \
     GFSUtil, extend_wind_components, decompose_gfs_data, get_gfs_target_param
 from wind_forecast.util.logging import log
@@ -101,7 +106,7 @@ class Sequence2SequenceDataModule(SplittableDataModule):
 
         self.after_synop_loaded()
 
-        self.synop_feature_names = modify_feature_names_after_periodic_reduction(self.synop_feature_names)
+        self.synop_feature_names = get_feature_names_after_periodic_reduction(self.synop_feature_names)
 
         # Get indices which correspond to 'dates' - 'dates' are the ones, which start a proper sequence without breaks
         self.data_indices = self.synop_data[self.synop_data["date"].isin(self.synop_dates)].index
@@ -112,8 +117,11 @@ class Sequence2SequenceDataModule(SplittableDataModule):
         else:
             # do not normalize periodic features
             features_to_normalize = [name for name in self.synop_feature_names if name not in
-                                     modify_feature_names_after_periodic_reduction(
-                                         [f['column'][1] for f in SYNOP_PERIODIC_FEATURES])]
+                                     [*get_feature_names_after_periodic_reduction(
+                                         [f['column'][1] for f in SYNOP_PERIODIC_FEATURES])]]
+
+        if self.config.experiment.load_gfs_data:
+            self.prepare_dataset_for_gfs()
 
         # data was not normalized, so take all frames which will be used, compute std and mean and normalize data
         self.synop_data, self.synop_mean, self.synop_std, self.synop_min, self.synop_max = normalize_data_for_training(
@@ -140,7 +148,6 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             return
 
         if self.config.experiment.load_gfs_data:
-            self.prepare_dataset_for_gfs()
             synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
                                                           self.synop_feature_names)
             synop_dataset.set_mean(self.synop_mean)
@@ -181,6 +188,8 @@ class Sequence2SequenceDataModule(SplittableDataModule):
 
         if all([f in self.gfs_features_names for f in self.gfs_wind_parameters]):
             self.gfs_data = self.prepare_gfs_data_with_wind_components(self.gfs_data)
+
+        self.gfs_exploration()
 
         if self.config.experiment.stl_decompose:
             self.gfs_features_names = self.gfs_decompose()
@@ -392,12 +401,28 @@ class Sequence2SequenceDataModule(SplittableDataModule):
                  str(self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_train.indices[0]][4][0]))
         log.info('Dataset train last date: ' +
                  str(self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_train.indices[-1]][5][-1]))
-        log.info('Dataset val first date: ' +
-                 str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_val.indices[0]][4][0]))
-        log.info('Dataset val last date: ' +
-                 str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_val.indices[-1]][5][-1]))
+        if self.dataset_val is not None:
+            log.info('Dataset val first date: ' +
+                     str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_val.indices[0]][4][0]))
+            log.info('Dataset val last date: ' +
+                     str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_val.indices[-1]][5][-1]))
         log.info('Dataset test first date: ' +
                  str(self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_test.indices[0]][4][0]))
         log.info('Dataset test last date: ' +
                  str(self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_test.indices[-1]][5][-1]))
+
+    def gfs_exploration(self):
+        gfs_data = resolve_indices(self.gfs_data, self.data_indices, self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        synop_data = resolve_indices(self.synop_data, self.data_indices, self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        explore_data_for_each_gfs_param(gfs_data, self.gfs_features_names)
+        synop_data = synop_data.rename(
+            columns=dict(zip([f[2] for f in self.synop_feature_names], [f[1] for f in self.synop_feature_names])))
+        add_angle_from_sin_cos_to_df(synop_data)
+        gfs_data[get_gfs_target_param(TEMPERATURE[1])] -= 273.15
+        gfs_data[get_gfs_target_param(PRESSURE[1])] /= 100
+        explore_data_bias(synop_data, gfs_data, [
+            (TEMPERATURE[1], 'TMP_HTGL_2'),
+            (VELOCITY_COLUMN[1], 'wind-velocity'),
+            (PRESSURE[1], 'PRES_SFC_0'),
+            (LOWER_CLOUDS[1], 'T CDC_LCY_0')])
 

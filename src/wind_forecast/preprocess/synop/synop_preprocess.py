@@ -79,7 +79,7 @@ def decompose_periodic_features(data: pd.DataFrame, all_features: List[str]):
         data.insert(data.columns.get_loc(column), f'{column}-cos', np.cos(period_argument).tolist())
         data.insert(data.columns.get_loc(column), f'{column}-sin', np.sin(period_argument).tolist())
         data.drop(columns=[column], inplace=True)
-        all_features = modify_feature_names_after_periodic_reduction(all_features)
+        all_features = get_feature_names_after_periodic_reduction(all_features)
     return data
 
 
@@ -101,7 +101,7 @@ def drop_zeros_series(data: pd.DataFrame, features: [str], min_series_len_to_rem
     return data.drop(data.index[indices_to_remove])
 
 
-def modify_feature_names_after_periodic_reduction(features: list):
+def get_feature_names_after_periodic_reduction(features: List[str]):
     new_features = features
     for feature in SYNOP_PERIODIC_FEATURES:
         index = new_features.index(feature['column'][1])

@@ -50,7 +50,6 @@ class Sequence2SequenceWithCMAXDataModule(Sequence2SequenceDataModule):
         cmax_loader = CMAXLoader()
 
         if self.config.experiment.load_gfs_data:
-            self.prepare_dataset_for_gfs()
             synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
                                                           self.synop_feature_names)
             synop_dataset.set_mean(self.synop_mean)

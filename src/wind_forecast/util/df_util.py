@@ -1,10 +1,12 @@
+import math
 from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.seasonal import STL
 
-from synop.consts import CLOUD_COVER, LOWER_CLOUDS, CLOUD_COVER_MAX
+from synop.consts import CLOUD_COVER, LOWER_CLOUDS, CLOUD_COVER_MAX, DIRECTION_COLUMN
+from wind_forecast.preprocess.synop.synop_preprocess import get_feature_names_after_periodic_reduction
 from wind_forecast.util.common_util import NormalizationType
 
 
@@ -90,3 +92,12 @@ def decompose_data(data: pd.DataFrame, features: list):
         data[f"{feature}_R"] = R
         data.drop(columns=[feature], inplace=True)
     return data
+
+
+def add_angle_from_sin_cos_to_df(data: pd.DataFrame):
+    sin_cos = data[get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]])].values
+    cos = [x[0] for x in sin_cos]
+    sin = [x[1] for x in sin_cos]
+    angle = np.array([math.atan2(s, c) * 180 / math.pi for s, c in zip(sin, cos)])
+    angle[np.where(angle < 0)] = angle[np.where(angle < 0)] + 360
+    data[DIRECTION_COLUMN[1]] = angle

@@ -18,8 +18,10 @@ from torch.nn import MSELoss, CrossEntropyLoss
 from torch.optim.optimizer import Optimizer
 from wandb.sdk.wandb_run import Run
 
+from synop.consts import DIRECTION_COLUMN
 from wind_forecast.config.register import Config
 from wind_forecast.consts import BatchKeys
+from wind_forecast.preprocess.synop.synop_preprocess import get_feature_names_after_periodic_reduction
 from wind_forecast.util.gfs_util import add_param_to_train_params
 
 
@@ -59,7 +61,11 @@ class BaseS2SRegressor(pl.LightningModule):
         target_param = self.cfg.experiment.target_parameter
         all_params = add_param_to_train_params(train_params, target_param)
         feature_names = list(list(zip(*all_params))[1])
+        feature_names = get_feature_names_after_periodic_reduction(feature_names)
+
         self.target_param_index = [x for x in feature_names].index(target_param)
+        sin_cos_features = get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]])
+        self.direction_param_indices = [[x for x in feature_names].index(sin_cos_features[0]), [x for x in feature_names].index(sin_cos_features[1])]
 
     def get_dates_tensor(self, input_dates, target_dates):
         if self.cfg.experiment.use_time2vec:
@@ -409,15 +415,13 @@ class BaseS2SRegressor(pl.LightningModule):
             else:
                 self.test_mase(outputs, targets, past_targets)
 
-        synop_inputs = batch[BatchKeys.SYNOP_PAST_X.value]
         dates_inputs = batch[BatchKeys.DATES_PAST.value]
         dates_targets = batch[BatchKeys.DATES_FUTURE.value]
 
         return {BatchKeys.SYNOP_FUTURE_Y.value: targets,
+                BatchKeys.SYNOP_FUTURE_X.value: batch[BatchKeys.SYNOP_FUTURE_X.value],
                 BatchKeys.PREDICTIONS.value: outputs.squeeze() if not self.categorical_experiment else torch.argmax(outputs, dim=-1),
                 BatchKeys.SYNOP_PAST_Y.value: past_targets,
-                BatchKeys.SYNOP_PAST_X.value: synop_inputs[:, :, self.target_param_index] if self.cfg.experiment.batch_size > 1
-                else synop_inputs[:, self.target_param_index],
                 BatchKeys.DATES_PAST.value: dates_inputs,
                 BatchKeys.DATES_FUTURE.value: dates_targets
                 }
@@ -489,6 +493,7 @@ class BaseS2SRegressor(pl.LightningModule):
         if self.cfg.experiment.batch_size == 1:
             prediction_series = [item.cpu() for item in [x[BatchKeys.PREDICTIONS.value] for x in outputs]]
             synop_future_y_series = [item.cpu() for item in [x[BatchKeys.SYNOP_FUTURE_Y.value] for x in outputs]]
+            synop_future_x_series = [item.cpu() for item in [x[BatchKeys.SYNOP_FUTURE_X.value] for x in outputs]]
             synop_past_y_series = [item.cpu() for item in [x[BatchKeys.SYNOP_PAST_Y.value] for x in outputs]]
             # mistery - why there are 1-element tuples?
             past_dates = [item[0] for item in [x[BatchKeys.DATES_PAST.value] for x in outputs]]
@@ -497,6 +502,8 @@ class BaseS2SRegressor(pl.LightningModule):
             prediction_series = [item.cpu() for sublist in [x[BatchKeys.PREDICTIONS.value] for x in outputs] for item in
                                  sublist]
             synop_future_y_series = [item.cpu() for sublist in [x[BatchKeys.SYNOP_FUTURE_Y.value] for x in outputs] for
+                                     item in sublist]
+            synop_future_x_series = [item.cpu() for sublist in [x[BatchKeys.SYNOP_FUTURE_X.value] for x in outputs] for
                                      item in sublist]
             synop_past_y_series = [item.cpu() for sublist in [x[BatchKeys.SYNOP_PAST_Y.value] for x in outputs] for item
                                    in sublist]
@@ -510,6 +517,7 @@ class BaseS2SRegressor(pl.LightningModule):
         return {
             BatchKeys.PREDICTIONS.value: prediction_series,
             BatchKeys.SYNOP_FUTURE_Y.value: synop_future_y_series,
+            BatchKeys.SYNOP_FUTURE_X.value: synop_future_x_series,
             BatchKeys.SYNOP_PAST_Y.value: synop_past_y_series,
             BatchKeys.DATES_PAST.value: past_dates,
             BatchKeys.DATES_FUTURE.value: future_dates

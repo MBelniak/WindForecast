@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, default_collate
 
 from gfs_oper.common import Config as GFSConfig
 from gfs_oper.gfs_fetch_job import fetch_oper_gfs
-from synop.consts import SYNOP_PERIODIC_FEATURES, LOWER_CLOUDS, CLOUD_COVER
+from synop.consts import SYNOP_PERIODIC_FEATURES, LOWER_CLOUDS, CLOUD_COVER, DIRECTION_COLUMN
 from synop.fetch_oper import fetch_recent_synop
 from util.coords import Coords
 from wind_forecast.config.register import Config
@@ -16,7 +16,7 @@ from wind_forecast.datamodules.SplittableDataModule import SplittableDataModule
 from wind_forecast.datasets.ConcatDatasets import ConcatDatasets
 from wind_forecast.datasets.Sequence2SequenceGFSDataset import Sequence2SequenceGFSDataset
 from wind_forecast.datasets.SequenceDataset import SequenceDataset
-from wind_forecast.preprocess.synop.synop_preprocess import modify_feature_names_after_periodic_reduction, \
+from wind_forecast.preprocess.synop.synop_preprocess import get_feature_names_after_periodic_reduction, \
     decompose_periodic_features
 from wind_forecast.util.common_util import NormalizationType
 from wind_forecast.util.config import process_config
@@ -87,8 +87,8 @@ class Sequence2SequenceOperDataModule(SplittableDataModule):
         self.synop_data = decompose_periodic_features(self.synop_data, self.synop_feature_names)
 
         features_to_normalize = [name for name in self.synop_feature_names if name not in
-                                 modify_feature_names_after_periodic_reduction(
-                                     [f['column'][1] for f in SYNOP_PERIODIC_FEATURES])]
+                                 [*get_feature_names_after_periodic_reduction(
+                                     [f['column'][1] for f in SYNOP_PERIODIC_FEATURES]), DIRECTION_COLUMN[1]]]
         self.synop_data = normalize_data_for_test(
             self.synop_data, features_to_normalize, self.synop_mean, self.synop_std,
             self.normalization_type)

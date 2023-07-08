@@ -2,12 +2,13 @@ import os
 
 import wandb
 
-from synop.consts import LOWER_CLOUDS, CLOUD_COVER
+from exploration.exploration import explore_data_bias
+from synop.consts import LOWER_CLOUDS, CLOUD_COVER, DIRECTION_COLUMN
 from wind_forecast.config.register import Config
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
-
+import pandas as pd
 from wind_forecast.util.gfs_util import get_gfs_target_param
 
 
@@ -15,6 +16,7 @@ def plot_results(system, config: Config, synop_mean, synop_std, gfs_mean, gfs_st
     plot_random_series(system, config, synop_mean, synop_std, gfs_mean, gfs_std)
     plot_step_by_step_metric(system)
     plot_scatters(system, config, synop_mean, synop_std, gfs_mean, gfs_std)
+    plot_bias(system, config, synop_mean, synop_std, gfs_mean, gfs_std)
 
 
 def plot_predict(system, config: Config, synop_mean, synop_std, gfs_mean, gfs_std):
@@ -104,13 +106,14 @@ def plot_random_series(system, config: Config, synop_mean, synop_std, gfs_mean, 
         wandb.log({'series_chart': ax})
         plt.close(fig)
 
+
 def plot_step_by_step_metric(system):
     rmse_by_step = system.test_results['rmse_by_step']
 
     plt.plot(np.arange(rmse_by_step.shape[0]), rmse_by_step, '-x')
     plt.xlabel('step')
     plt.ylabel('rmse')
-    wandb.log({'step_by_step_metric_chart': plt.gca()})
+    wandb.log({'step_by_step_metric_chart': wandb.Image(plt)})
     plt.close()
 
 
@@ -144,4 +147,25 @@ def plot_scatter(series_a, series_b, label_a, label_b, filename):
     ax.tick_params(axis='both', which='major', labelsize=14)
     os.makedirs('plots', exist_ok=True)
     plt.savefig(f'plots/{filename}')
+    wandb.log({f'scatter_{filename}': wandb.Image(plt)})
     plt.close()
+
+def plot_bias(system, config, synop_mean, synop_std, gfs_mean, gfs_std):
+    output_series = system.test_results['output_series']
+    truth_series = system.test_results['truth_series']
+    gfs_series = system.test_results['gfs_targets']
+    truth_direction_series = system.test_results['truth_direction_series']
+    output_series = rescale_series(config, output_series, synop_mean, synop_std, config.experiment.target_parameter)
+    truth_series = rescale_series(config, truth_series, synop_mean, synop_std, config.experiment.target_parameter)
+    gfs_series = rescale_series(config, gfs_series, gfs_mean, gfs_std,
+                                    get_gfs_target_param(config.experiment.target_parameter))
+
+    synop_df = pd.DataFrame(zip(truth_series.flatten(), truth_direction_series.flatten()), columns=[config.experiment.target_parameter, DIRECTION_COLUMN[1]])
+    predictions_df = pd.DataFrame(output_series.flatten(), columns=[config.experiment.target_parameter])
+    gfs_df = pd.DataFrame(gfs_series.flatten(), columns=[config.experiment.target_parameter])
+    explore_data_bias(synop_df, predictions_df,
+                      [(config.experiment.target_parameter, config.experiment.target_parameter),
+                       (DIRECTION_COLUMN[1], DIRECTION_COLUMN[1])])
+    explore_data_bias(synop_df, gfs_df,
+                      [(config.experiment.target_parameter, config.experiment.target_parameter),
+                       (DIRECTION_COLUMN[1], DIRECTION_COLUMN[1])])
