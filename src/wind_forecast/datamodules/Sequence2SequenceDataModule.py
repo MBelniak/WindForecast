@@ -1,11 +1,9 @@
-import math
 import os
 from itertools import chain
 from pathlib import Path
 from typing import Optional, Tuple, List
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 from torch.utils.data import DataLoader
@@ -13,8 +11,7 @@ from torch.utils.data.dataloader import default_collate
 from tqdm import tqdm
 
 from exploration.exploration import explore_data_for_each_gfs_param, explore_data_bias
-from synop.consts import SYNOP_PERIODIC_FEATURES, LOWER_CLOUDS, CLOUD_COVER, TEMPERATURE, VELOCITY_COLUMN, PRESSURE, \
-    DIRECTION_COLUMN
+from synop.consts import SYNOP_PERIODIC_FEATURES, LOWER_CLOUDS, CLOUD_COVER, TEMPERATURE, VELOCITY_COLUMN, PRESSURE
 from util.coords import Coords
 from wind_forecast.config.register import Config
 from wind_forecast.consts import BatchKeys

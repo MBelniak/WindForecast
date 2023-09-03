@@ -100,8 +100,7 @@ class ExperimentSettings:
     # classic or random
     dataset_split_mode: str = 'classic'
 
-    # synop_file: str = "WARSZAWA-OKECIE_375_data.csv"
-    synop_file: str = "POZNAN-LAWICA_352160330_data.csv"
+    synop_file: str = "WARSZAWA-OKECIE_352200375_data.csv"
 
     synop_station_code: str = "12375"
 
@@ -164,7 +163,7 @@ class ExperimentSettings:
 
     future_sequence_length: int = 24
 
-    target_coords: Any = (52.1831174, 20.9875259)
+    target_coords: Any = (52.162872, 20.961093)
 
     # e.g. for clouds - each octant is another class 0-9
     categorical_experiment: bool = False
