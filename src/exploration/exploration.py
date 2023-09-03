@@ -296,6 +296,7 @@ def plot_diff_hist(diff, xlabel: str, ylabel: str, parameter: str):
     os.makedirs(results_dir, exist_ok=True)
     plt.savefig(os.path.join(results_dir, f'gfs_diff_{parameter}_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}.png'), dpi=200, bbox_inches='tight')
     wandb.log({f'gfs_diff_{parameter}_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}': wandb.Image(plt)})
+    plt.close()
 
 
 def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str):
@@ -307,11 +308,13 @@ def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str):
     plt.ylabel(ylabel, fontsize=22)
     plt.title(f"Błąd prognozy ({parameter.lower()}) vs kierunek wiatru", fontsize=22)
     ax.tick_params(axis='both', labelsize=20)
+    ax.set_ylim([-10, 10])
 
     os.makedirs(results_dir, exist_ok=True)
     plt.savefig(os.path.join(results_dir, f'gfs_diff_{parameter}_by_direction_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}.png'), dpi=200,
                 bbox_inches='tight')
     wandb.log({f'gfs_diff_{parameter}_by_direction_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}':  wandb.Image(plt)})
+    plt.close()
 
 
 def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame, features: List[Tuple[str, str]]):
