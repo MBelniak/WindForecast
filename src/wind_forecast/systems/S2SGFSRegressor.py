@@ -59,6 +59,7 @@ class S2SGFSRegressor(BaseS2SRegressor):
         self.test_mase(outputs.squeeze(), targets.float().squeeze(), synop_past_targets)
 
         return {BatchKeys.SYNOP_FUTURE_Y.value: targets,
+                BatchKeys.SYNOP_FUTURE_X.value: batch[BatchKeys.SYNOP_FUTURE_X.value],
                 BatchKeys.PREDICTIONS.value: outputs.squeeze(),
                 BatchKeys.SYNOP_PAST_Y.value: synop_past_targets[:, :],
                 BatchKeys.DATES_PAST.value: dates_inputs,
