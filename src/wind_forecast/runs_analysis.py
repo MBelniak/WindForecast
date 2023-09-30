@@ -46,9 +46,9 @@ def plot_series_comparison(analysis_config_runs: List, run_summaries: List[Any],
     all_dates = run_summaries[0]['plot_all_dates']
     prediction_dates = run_summaries[0]['plot_prediction_dates']
     target_mean = run_summaries[0]['target_mean_0'] if 'target_mean_0' in run_summaries[0].keys() else run_summaries[0][
-        'target_mean']
+        'synop_mean'][config.experiment.target_parameter]
     target_std = run_summaries[0]['target_std_0'] if 'target_std_0' in run_summaries[0].keys() else run_summaries[0][
-        'target_std']
+        'synop_std'][config.experiment.target_parameter]
 
     for series_index in range(len(truth_series)):
         fig, ax = plt.subplots(figsize=(30, 15))
@@ -134,9 +134,9 @@ def plot_gfs_corr_comparison():
     labels = ['LSTM', 'BiLSTM', "TCN", "TCN-Attention", "Transformer",
               "Spacetimeformer", 'N-BEATSx', "Regresja liniowa", "ARIMAX"]
 
-    temp_corrs = [0.8324, 0.8232, 0.848, 0.8714, 0.8202, 0.9907, 0.7988, 0.9592, 0.9149]
-    wind_corrs = [0.5211, 0.4805, 0.5338, 0.5691, 0.5263, 0.8277, 0.5153, 0.8254, 0.661]
-    pres_corrs = [0.8705, 0.8725, 0.8705, 0.8528, 0.8607, 0.9559, 0.8446, 0.8628, 0.9643]
+    temp_corrs = [0.8438, 0.8215, 0.8426, 0.8551, 0.8088, 0.9629, 0.8067, 0.9591, 0.9273]
+    wind_corrs = [0.5364, 0.5118, 0.5452, 0.5804, 0.516, 0.7844, 0.5094, 0.822, 0.6554]
+    pres_corrs = [0.8576, 0.8618, 0.8627, 0.8612, 0.8664, 0.9346, 0.852, 0.8595, 0.9628]
     x = np.arange(len(labels))
     width = 0.25  # the width of the bars
 

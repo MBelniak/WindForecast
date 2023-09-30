@@ -25,49 +25,45 @@ from wind_forecast.util.rundir import setup_rundir
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 def log_dataset_metrics(datamodule: SplittableDataModule, run: Run, config: Config):
-    metrics = {
-        'train_dataset_length': len(datamodule.dataset_train),
-        'val_dataset_length': len(datamodule.dataset_val),
-        'test_dataset_length': len(datamodule.dataset_test),
-    }
+    run.summary['train_dataset_length'] = len(datamodule.dataset_train)
+    run.summary['val_dataset_length'] = len(datamodule.dataset_val)
+    run.summary['test_dataset_length'] = len(datamodule.dataset_test)
 
     if config.experiment.normalization_type == NormalizationType.STANDARD:
         synop_mean = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset").mean
         synop_std = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset").std
-        metrics['synop_mean'] = synop_mean
-        metrics['synop_std'] = synop_std
+        run.summary['synop_mean'] = synop_mean
+        run.summary['synop_std'] = synop_std
 
         if config.experiment.load_gfs_data:
             gfs_mean = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset").mean
             gfs_std = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset").std
-            metrics['gfs_mean'] = gfs_mean
-            metrics['gfs_std'] = gfs_std
+            run.summary['gfs_mean'] = gfs_mean
+            run.summary['gfs_std'] = gfs_std
 
         if config.experiment.load_cmax_data:
             cmax_mean = datamodule.dataset_test.dataset.get_dataset("CMAXDataset").mean
             cmax_std = datamodule.dataset_test.dataset.get_dataset("CMAXDataset").std
-            metrics['cmax_mean'] = cmax_mean
-            metrics['cmax_std'] = cmax_std
+            run.summary['cmax_mean'] = cmax_mean
+            run.summary['cmax_std'] = cmax_std
 
     else:
         synop_min = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset").min
         synop_max = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset").max
-        metrics['synop_min'] = synop_min
-        metrics['synop_max'] = synop_max
+        run.summary['synop_min'] = synop_min
+        run.summary['synop_max'] = synop_max
 
         if config.experiment.load_gfs_data:
             gfs_min = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset").min
             gfs_max = datamodule.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset").max
-            metrics['gfs_min'] = gfs_min
-            metrics['gfs_max'] = gfs_max
+            run.summary['gfs_min'] = gfs_min
+            run.summary['gfs_max'] = gfs_max
 
         if config.experiment.load_cmax_data:
             cmax_min = datamodule.dataset_test.dataset.get_dataset("CMAXDataset").min
             cmax_max = datamodule.dataset_test.dataset.get_dataset("CMAXDataset").max
-            metrics['cmax_min'] = cmax_min
-            metrics['cmax_max'] = cmax_max
-
-    run.log(metrics)
+            run.summary['cmax_min'] = cmax_min
+            run.summary['cmax_max'] = cmax_max
 
 
 def init_wandb():
