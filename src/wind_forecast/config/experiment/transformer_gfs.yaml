@@ -11,7 +11,7 @@ resume_checkpoint: ~
 #resume_checkpoint: wandb://mbelniak/wind-forecast/model-3qklp9mb:v53@model.ckpt
 
 datamodule:
-  _target_: wind_forecast.datamodules.Sequence2SequenceWithCMAXDataModule.Sequence2SequenceWithCMAXDataModule
+  _target_: wind_forecast.datamodules.Sequence2SequenceDataModule.Sequence2SequenceDataModule
 
 
 model:

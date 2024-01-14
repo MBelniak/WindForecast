@@ -7,7 +7,6 @@ import torch
 
 from synop.consts import DIRECTION_COLUMN
 from wind_forecast.consts import BatchKeys
-from wind_forecast.preprocess.synop.synop_preprocess import get_feature_names_after_periodic_reduction
 from wind_forecast.systems.BaseS2SRegressor import BaseS2SRegressor
 from wind_forecast.util.df_util import add_angle_from_sin_cos_to_df
 
@@ -103,13 +102,6 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
         output_series = np.asarray([np.asarray(el) for el in predictions])
         truth_series = np.asarray([np.asarray(el) for el in series[BatchKeys.SYNOP_FUTURE_Y.value]])
 
-        truth_direction_series = np.asarray([np.asarray(el[:, self.direction_param_indices]) for el in series[BatchKeys.SYNOP_FUTURE_X.value]])
-
-        truth_direction_df = pd.DataFrame(
-            zip(truth_direction_series[:, :, 0].flatten(), truth_direction_series[:, :, 1].flatten()),
-            columns=get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]]))
-        add_angle_from_sin_cos_to_df(truth_direction_df)
-
         gfs_targets = np.asarray([np.asarray(el) for el in gfs_targets])
         past_truth_series = np.asarray([np.asarray(el) for el in series[BatchKeys.SYNOP_PAST_Y.value]])
 
@@ -156,5 +148,18 @@ class S2SRegressorWithGFSInput(BaseS2SRegressor):
             'output_series': output_series,
             'gfs_targets': gfs_targets,
             'truth_series': truth_series,
-            'truth_direction_series': truth_direction_df[DIRECTION_COLUMN[1]].values,
+            'truth_wind_direction_series': self.get_truth_wind_direction_df(series)[DIRECTION_COLUMN[1]].values,
+            'truth_wind_velocity_series': self.get_truth_wind_velocity_df(series),
         }
+
+    def get_truth_wind_direction_df(self, output_series: Dict):
+        truth_wind_direction_series = np.asarray([np.asarray(el[:, self.wind_direction_param_indices]) for el in output_series[BatchKeys.SYNOP_FUTURE_X.value]])
+
+        truth_direction_df = pd.DataFrame(
+            zip(truth_wind_direction_series[:, :, 0].flatten(), truth_wind_direction_series[:, :, 1].flatten()),
+            columns=self.sin_cos_features)
+        add_angle_from_sin_cos_to_df(truth_direction_df)
+        return truth_direction_df
+
+    def get_truth_wind_velocity_df(self, output_series: Dict):
+        return np.asarray([np.asarray(el[:, self.wind_velocity_param_index]) for el in output_series[BatchKeys.SYNOP_FUTURE_X.value]])

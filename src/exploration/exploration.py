@@ -27,107 +27,107 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 TIME_FORMAT = "%H-%M-%S-%f"
 GFS_PARAMS_CONFIG = {
-  "params": [
-    {
-      "name": "T CDC",
-      "level": "LCY_0",
-      "interpolation": "polynomial",
-      "min": 0,
-      "max": 100
-    },
-    {
-      "name": "T CDC",
-      "level": "MCY_0",
-      "interpolation": "polynomial",
-      "min": 0,
-      "max": 100
-    },
-    {
-      "name": "T CDC",
-      "level": "HCY_0",
-      "interpolation": "polynomial",
-      "min": 0,
-      "max": 100
-    },
-    {
-      "name": "V GRD",
-      "level": "HTGL_10",
-      "interpolation": "polynomial"
-    },
-    {
-      "name": "U GRD",
-      "level": "HTGL_10",
-      "interpolation": "polynomial"
-    },
-    {
-      "name": "TMP",
-      "level": "ISBL_850",
-      "interpolation": "polynomial"
-    },
-    {
-      "name": "TMP",
-      "level": "HTGL_2",
-      "interpolation": "polynomial"
-    },
-    {
-      "name": "PRATE",
-      "level": "SFC_0",
-      "interpolation": "polynomial",
-      "min": 0
-    },
-    {
-      "name": "PRES",
-      "level": "SFC_0",
-      "interpolation": "polynomial"
-    },
-    {
-      "name": "R H",
-      "level": "HTGL_2",
-      "interpolation": "polynomial",
-      "min": 0,
-      "max": 100
-    },
-    {
-      "name": "R H",
-      "level": "ISBL_700",
-      "interpolation": "polynomial",
-      "min": 0,
-      "max": 100
-    },
-    {
-      "name": "DPT",
-      "level": "HTGL_2",
-      "interpolation": "polynomial"
-    },
+    "params": [
+        {
+            "name": "T CDC",
+            "level": "LCY_0",
+            "interpolation": "polynomial",
+            "min": 0,
+            "max": 100
+        },
+        {
+            "name": "T CDC",
+            "level": "MCY_0",
+            "interpolation": "polynomial",
+            "min": 0,
+            "max": 100
+        },
+        {
+            "name": "T CDC",
+            "level": "HCY_0",
+            "interpolation": "polynomial",
+            "min": 0,
+            "max": 100
+        },
+        {
+            "name": "V GRD",
+            "level": "HTGL_10",
+            "interpolation": "polynomial"
+        },
+        {
+            "name": "U GRD",
+            "level": "HTGL_10",
+            "interpolation": "polynomial"
+        },
+        {
+            "name": "TMP",
+            "level": "ISBL_850",
+            "interpolation": "polynomial"
+        },
+        {
+            "name": "TMP",
+            "level": "HTGL_2",
+            "interpolation": "polynomial"
+        },
+        {
+            "name": "PRATE",
+            "level": "SFC_0",
+            "interpolation": "polynomial",
+            "min": 0
+        },
+        {
+            "name": "PRES",
+            "level": "SFC_0",
+            "interpolation": "polynomial"
+        },
+        {
+            "name": "R H",
+            "level": "HTGL_2",
+            "interpolation": "polynomial",
+            "min": 0,
+            "max": 100
+        },
+        {
+            "name": "R H",
+            "level": "ISBL_700",
+            "interpolation": "polynomial",
+            "min": 0,
+            "max": 100
+        },
+        {
+            "name": "DPT",
+            "level": "HTGL_2",
+            "interpolation": "polynomial"
+        },
         {
             "name": "HGT",
             "level": "ISBL_500",
             "interpolation": "polynomial"
         },
         {
-      "name": "TMP",
-      "level": "ISBL_700",
-      "interpolation": "polynomial"
-    },
-    {
-      "name": "GUST",
-      "level": "SFC_0",
-      "interpolation": "polynomial",
-      "min": 0
-    },
-    {
-        "name": "ALBDO",
-        "level": "SFC_0",
-        "interpolation": "polynomial",
-        "min": 0
-    },
-    {
-        "name": "SNO D",
-        "level": "SFC_0",
-        "interpolation": "polynomial",
-        "min": 0
-    }
-  ]
+            "name": "TMP",
+            "level": "ISBL_700",
+            "interpolation": "polynomial"
+        },
+        {
+            "name": "GUST",
+            "level": "SFC_0",
+            "interpolation": "polynomial",
+            "min": 0
+        },
+        {
+            "name": "ALBDO",
+            "level": "SFC_0",
+            "interpolation": "polynomial",
+            "min": 0
+        },
+        {
+            "name": "SNO D",
+            "level": "SFC_0",
+            "interpolation": "polynomial",
+            "min": 0
+        }
+    ]
 }
 
 logger = get_logger(os.path.join("explore_results", 'logs.log'))
@@ -161,7 +161,7 @@ def get_gfs_data_for_offset(offset=3):
 
 
 def prepare_gfs_data_with_wind_components(gfs_data: pd.DataFrame, feature_names: List[str]) -> (
-pd.DataFrame, List[str]):
+        pd.DataFrame, List[str]):
     gfs_wind_parameters = ["V GRD_HTGL_10", "U GRD_HTGL_10"]
     [feature_names.remove(param) for param in gfs_wind_parameters]
     gfs_wind_data = gfs_data[gfs_wind_parameters]
@@ -300,7 +300,7 @@ def plot_diff_hist(diff, xlabel: str, ylabel: str, filename: str):
     plt.close()
 
 
-def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str, filename: str):
+def plot_diff_by_wind_direction(x, y, xlabel, ylabel, parameter: str, filename: str):
     plt.figure(figsize=(20, 10))
     plt.tight_layout()
     ax = sns.lineplot(x=x, y=y)
@@ -310,6 +310,24 @@ def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str, filename: str):
     plt.title(f"Błąd prognozy ({parameter.lower()}) vs kierunek wiatru", fontsize=22)
     ax.tick_params(axis='both', labelsize=20)
     ax.set_ylim([-10, 10])
+
+    os.makedirs(results_dir, exist_ok=True)
+    plt.savefig(os.path.join(results_dir, f'{filename}.png'), dpi=200, bbox_inches='tight')
+    wandb.log({f'{filename}': wandb.Image(plt)})
+    plt.close()
+
+
+def plot_diff_by_wind_velocity(x, y, xlabel, ylabel, parameter: str, filename: str):
+    plt.figure(figsize=(20, 10))
+    plt.tight_layout()
+    ax = sns.lineplot(x=x, y=y)
+    plt.plot([0, 360], [0, 0], linewidth=2, color='red')
+    plt.xlabel(xlabel, fontsize=22)
+    plt.ylabel(ylabel, fontsize=22)
+    plt.title(f"Błąd prognozy ({parameter.lower()}) vs prędkość wiatru", fontsize=22)
+    ax.tick_params(axis='both', labelsize=20)
+    ax.set_ylim([-10, 10])
+    ax.set_xlim([0, 15])
 
     os.makedirs(results_dir, exist_ok=True)
     plt.savefig(os.path.join(results_dir, f'{filename}.png'), dpi=200, bbox_inches='tight')
@@ -328,15 +346,26 @@ def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame
             plot_diff_hist(diff, 'Różnica, K', 'Liczebność', filenames[index])
 
             if DIRECTION_COLUMN[1] in all_synop_data.columns:
-                synop_temp = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
+                synop_temp_and_wind_dir = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
                 gfs_targets = predicted_data[data_keys[1]].values
 
-                plot_diff_by_direction(x=synop_temp[DIRECTION_COLUMN[1]],
-                                       y=gfs_targets - synop_temp[data_keys[0]],
-                                       xlabel='Kierunek wiatru, °',
-                                       ylabel='Różnica, K',
-                                       parameter=TEMPERATURE[2],
-                                       filename=filenames[index] + "_by_direction")
+                plot_diff_by_wind_direction(x=synop_temp_and_wind_dir[DIRECTION_COLUMN[1]],
+                                            y=gfs_targets - synop_temp_and_wind_dir[data_keys[0]],
+                                            xlabel='Kierunek wiatru, °',
+                                            ylabel='Różnica, K',
+                                            parameter=TEMPERATURE[2],
+                                            filename=filenames[index] + "_by_wind_direction")
+
+            if VELOCITY_COLUMN[1] in all_synop_data.columns:
+                synop_temp_and_wind_vel = all_synop_data[[data_keys[0], VELOCITY_COLUMN[1]]]
+                gfs_targets = predicted_data[data_keys[1]].values
+
+                plot_diff_by_wind_velocity(x=synop_temp_and_wind_vel[VELOCITY_COLUMN[1]],
+                                           y=gfs_targets - synop_temp_and_wind_vel[data_keys[0]],
+                                           xlabel='Prędkość wiatru, m/s',
+                                           ylabel='Różnica, K',
+                                           parameter=TEMPERATURE[2],
+                                           filename=filenames[index] + "_by_wind_velocity")
 
         elif data_keys[0] == VELOCITY_COLUMN[1]:
             predictions = predicted_data[data_keys[1]].values
@@ -349,12 +378,12 @@ def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame
                 synop_wind = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
                 predictions = predicted_data[data_keys[1]].values
 
-                plot_diff_by_direction(x=synop_wind[DIRECTION_COLUMN[1]],
-                                       y=predictions - synop_wind[data_keys[0]],
-                                       xlabel='Kierunek wiatru, °',
-                                       ylabel='Różnica, m/s',
-                                       parameter=VELOCITY_COLUMN[2],
-                                       filename=filenames[index] + "_by_direction")
+                plot_diff_by_wind_direction(x=synop_wind[DIRECTION_COLUMN[1]],
+                                            y=predictions - synop_wind[data_keys[0]],
+                                            xlabel='Kierunek wiatru, °',
+                                            ylabel='Różnica, m/s',
+                                            parameter=VELOCITY_COLUMN[2],
+                                            filename=filenames[index] + "_by_direction")
 
         elif data_keys[0] == PRESSURE[1]:
             predictions = predicted_data[data_keys[1]].values
@@ -363,15 +392,15 @@ def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame
             plot_diff_hist(diff, 'Różnica, hPa', 'Liczebność', filenames[index])
 
             if DIRECTION_COLUMN[1] in all_synop_data.columns:
-                synop_temp = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
+                synop_temp_and_wind_dir = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
                 predictions = predicted_data[data_keys[1]].values
 
-                plot_diff_by_direction(x=synop_temp[DIRECTION_COLUMN[1]],
-                                       y=predictions - synop_temp[data_keys[0]],
-                                       xlabel='Kierunek wiatru, °',
-                                       ylabel='Różnica, hPa',
-                                       parameter=PRESSURE[2],
-                                       filename=filenames[index] + "_by_direction")
+                plot_diff_by_wind_direction(x=synop_temp_and_wind_dir[DIRECTION_COLUMN[1]],
+                                            y=predictions - synop_temp_and_wind_dir[data_keys[0]],
+                                            xlabel='Kierunek wiatru, °',
+                                            ylabel='Różnica, hPa',
+                                            parameter=PRESSURE[2],
+                                            filename=filenames[index] + "_by_direction")
 
 
 def explore_synop(synop_file: str):

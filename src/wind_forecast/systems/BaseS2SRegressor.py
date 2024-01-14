@@ -18,7 +18,7 @@ from torch.nn import MSELoss, CrossEntropyLoss
 from torch.optim.optimizer import Optimizer
 from wandb.sdk.wandb_run import Run
 
-from synop.consts import DIRECTION_COLUMN
+from synop.consts import DIRECTION_COLUMN, VELOCITY_COLUMN
 from wind_forecast.config.register import Config
 from wind_forecast.consts import BatchKeys
 from wind_forecast.preprocess.synop.synop_preprocess import get_feature_names_after_periodic_reduction
@@ -63,9 +63,10 @@ class BaseS2SRegressor(pl.LightningModule):
         feature_names = list(list(zip(*all_params))[1])
         feature_names = get_feature_names_after_periodic_reduction(feature_names)
 
-        self.target_param_index = [x for x in feature_names].index(target_param)
-        sin_cos_features = get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]])
-        self.direction_param_indices = [[x for x in feature_names].index(sin_cos_features[0]), [x for x in feature_names].index(sin_cos_features[1])]
+        self.target_param_index = feature_names.index(target_param)
+        self.sin_cos_features = get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]])
+        self.wind_direction_param_indices = [feature_names.index(self.sin_cos_features[0]), feature_names.index(self.sin_cos_features[1])]
+        self.wind_velocity_param_index = feature_names.index(VELOCITY_COLUMN[1])
 
     def get_dates_tensor(self, input_dates, target_dates):
         if self.cfg.experiment.use_time2vec:

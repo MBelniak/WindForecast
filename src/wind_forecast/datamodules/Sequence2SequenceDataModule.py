@@ -144,14 +144,14 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             self.log_dataset_info()
             return
 
-        if self.config.experiment.load_gfs_data:
-            synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
-                                                          self.synop_feature_names)
-            synop_dataset.set_mean(self.synop_mean)
-            synop_dataset.set_std(self.synop_std)
-            synop_dataset.set_min(self.synop_min)
-            synop_dataset.set_max(self.synop_max)
+        synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
+                                                      self.synop_feature_names)
+        synop_dataset.set_mean(self.synop_mean)
+        synop_dataset.set_std(self.synop_std)
+        synop_dataset.set_min(self.synop_min)
+        synop_dataset.set_max(self.synop_max)
 
+        if self.config.experiment.load_gfs_data:
             gfs_dataset = Sequence2SequenceGFSDataset(self.config, self.gfs_data, self.data_indices,
                                                       self.gfs_features_names)
             gfs_dataset.set_mean(self.gfs_mean)
@@ -160,12 +160,6 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             gfs_dataset.set_max(self.gfs_max)
             dataset = ConcatDatasets(synop_dataset, gfs_dataset)
         else:
-            synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
-                                                          self.synop_feature_names)
-            synop_dataset.set_mean(self.synop_mean)
-            synop_dataset.set_std(self.synop_std)
-            synop_dataset.set_min(self.synop_min)
-            synop_dataset.set_max(self.synop_max)
             dataset = synop_dataset
 
         if len(dataset) == 0:
@@ -178,7 +172,7 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             self.eliminate_gfs_bias()
 
     def prepare_dataset_for_gfs(self):
-        log.info("Preparing the GFS dataset")
+        log.info("Preparing GFS dataset")
         # match GFS and synop sequences
         self.data_indices, self.gfs_data = self.gfs_util.match_gfs_with_synop_sequence2sequence(
             self.synop_data,
@@ -423,29 +417,6 @@ class Sequence2SequenceDataModule(SplittableDataModule):
                          self.dataset_test.indices[-1]][5][-1]))
 
     def gfs_exploration(self):
-        gfs_data = resolve_indices(self.gfs_data, self.data_indices,
-                                   self.sequence_length + self.prediction_offset + self.future_sequence_length)
-        synop_data = resolve_indices(self.synop_data, self.data_indices,
-                                     self.sequence_length + self.prediction_offset + self.future_sequence_length)
-        explore_data_for_each_gfs_param(gfs_data, self.gfs_features_names)
-        synop_data = synop_data.rename(
-            columns=dict(zip([f[2] for f in self.synop_feature_names], [f[1] for f in self.synop_feature_names])))
-        add_angle_from_sin_cos_to_df(synop_data)
-        gfs_data[get_gfs_target_param(TEMPERATURE[1])] -= 273.15
-        gfs_data[get_gfs_target_param(PRESSURE[1])] /= 100
-        explore_data_bias(synop_data, gfs_data,
-                          [(TEMPERATURE[1], 'TMP_HTGL_2'),
-                           (VELOCITY_COLUMN[1], 'wind-velocity'),
-                           (PRESSURE[1], 'PRES_SFC_0'),
-                           (LOWER_CLOUDS[1], 'T CDC_LCY_0')
-                           ],
-                          ['gfs_diff_temperature',
-                           'gfs_diff_wind_velocity',
-                           'gfs_diff_pressure',
-                           'gfs_diff_lower_clouds']
-                          )
-
-    def gfs_exploration_test_dataset(self):
         gfs_data = resolve_indices(self.gfs_data, self.data_indices,
                                    self.sequence_length + self.prediction_offset + self.future_sequence_length)
         synop_data = resolve_indices(self.synop_data, self.data_indices,

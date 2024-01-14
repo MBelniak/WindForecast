@@ -3,7 +3,7 @@ import os
 import wandb
 
 from exploration.exploration import explore_data_bias
-from synop.consts import LOWER_CLOUDS, CLOUD_COVER, DIRECTION_COLUMN
+from synop.consts import LOWER_CLOUDS, CLOUD_COVER, DIRECTION_COLUMN, VELOCITY_COLUMN
 from wind_forecast.config.register import Config
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -160,14 +160,24 @@ def plot_bias(system, config, synop_mean, synop_std, gfs_mean, gfs_std):
     output_series = system.test_results['output_series']
     truth_series = system.test_results['truth_series']
     gfs_series = system.test_results['gfs_targets']
-    truth_direction_series = system.test_results['truth_direction_series']
+    truth_wind_direction_series = system.test_results['truth_wind_direction_series']
+    truth_wind_velocity_series = system.test_results['truth_wind_velocity_series']
     output_series = rescale_series(config, output_series, synop_mean, synop_std, config.experiment.target_parameter)
     truth_series = rescale_series(config, truth_series, synop_mean, synop_std, config.experiment.target_parameter)
+    truth_wind_velocity_series = rescale_series(config, truth_wind_velocity_series, synop_mean, synop_std, VELOCITY_COLUMN[1])
     gfs_series = rescale_series(config, gfs_series, gfs_mean, gfs_std,
                                 get_gfs_target_param(config.experiment.target_parameter))
 
-    synop_df = pd.DataFrame(zip(truth_series.flatten(), truth_direction_series.flatten()),
-                            columns=[config.experiment.target_parameter, DIRECTION_COLUMN[1]])
+    if config.experiment.target_parameter == VELOCITY_COLUMN[1]:
+        synop_df = pd.DataFrame(
+            zip(truth_series.flatten(), truth_wind_direction_series.flatten()),
+            columns=[config.experiment.target_parameter, DIRECTION_COLUMN[1]])
+    else:
+        # Add velocity column to df in order to plot bias against wind velocity
+        synop_df = pd.DataFrame(
+            zip(truth_series.flatten(), truth_wind_direction_series.flatten(), truth_wind_velocity_series.flatten()),
+            columns=[config.experiment.target_parameter, DIRECTION_COLUMN[1], VELOCITY_COLUMN[1]])
+
     predictions_df = pd.DataFrame(output_series.flatten(), columns=[config.experiment.target_parameter])
     gfs_df = pd.DataFrame(gfs_series.flatten(), columns=[config.experiment.target_parameter])
     explore_data_bias(synop_df, predictions_df,

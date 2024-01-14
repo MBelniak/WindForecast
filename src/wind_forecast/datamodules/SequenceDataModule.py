@@ -97,7 +97,7 @@ class SequenceDataModule(SplittableDataModule):
         self.split_dataset(self.config, dataset, self.sequence_length)
 
     def prepare_dataset_for_gfs(self):
-        log.info("Preparing the dataset")
+        log.info("Preparing dataset")
         synop_inputs, all_synop_targets = self.resolve_all_synop_data()
 
         all_gfs_input_data = ...

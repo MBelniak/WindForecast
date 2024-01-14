@@ -49,14 +49,14 @@ class Sequence2SequenceWithCMAXDataModule(Sequence2SequenceDataModule):
 
         cmax_loader = CMAXLoader()
 
-        if self.config.experiment.load_gfs_data:
-            synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
-                                                          self.synop_feature_names)
-            synop_dataset.set_mean(self.synop_mean)
-            synop_dataset.set_std(self.synop_std)
-            synop_dataset.set_min(self.synop_min)
-            synop_dataset.set_max(self.synop_max)
+        synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
+                                                      self.synop_feature_names)
+        synop_dataset.set_mean(self.synop_mean)
+        synop_dataset.set_std(self.synop_std)
+        synop_dataset.set_min(self.synop_min)
+        synop_dataset.set_max(self.synop_max)
 
+        if self.config.experiment.load_gfs_data:
             gfs_dataset = Sequence2SequenceGFSDataset(self.config, self.gfs_data, self.data_indices,
                                                       self.gfs_features_names)
             gfs_dataset.set_mean(self.gfs_mean)
@@ -78,13 +78,6 @@ class Sequence2SequenceWithCMAXDataModule(Sequence2SequenceDataModule):
                 f"Synop and CMAX datasets lengths don't match: {len(synop_dataset)} vs {len(cmax_dataset)}"
             dataset = ConcatDatasets(synop_dataset, gfs_dataset, cmax_dataset)
         else:
-            synop_dataset = Sequence2SequenceSynopDataset(self.config, self.synop_data, self.data_indices,
-                                                          self.synop_feature_names)
-            synop_dataset.set_mean(self.synop_mean)
-            synop_dataset.set_std(self.synop_std)
-            synop_dataset.set_min(self.synop_min)
-            synop_dataset.set_max(self.synop_max)
-
             self.synop_dates = self.synop_data.loc[self.data_indices]['date'].values
             mean, std, min, max = self.get_cmax_normalization_values(cmax_loader)
 
