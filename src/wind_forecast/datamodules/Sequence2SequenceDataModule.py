@@ -152,7 +152,8 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             synop_dataset.set_min(self.synop_min)
             synop_dataset.set_max(self.synop_max)
 
-            gfs_dataset = Sequence2SequenceGFSDataset(self.config, self.gfs_data, self.data_indices, self.gfs_features_names)
+            gfs_dataset = Sequence2SequenceGFSDataset(self.config, self.gfs_data, self.data_indices,
+                                                      self.gfs_features_names)
             gfs_dataset.set_mean(self.gfs_mean)
             gfs_dataset.set_std(self.gfs_std)
             gfs_dataset.set_min(self.gfs_min)
@@ -211,11 +212,13 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             if self.normalization_type == NormalizationType.STANDARD:
                 self.gfs_mean[self.gfs_target_param] = target_data.mean(axis=0)
                 self.gfs_std[self.gfs_target_param] = target_data.std(axis=0)
-                self.gfs_data[self.gfs_target_param] = (target_data - target_data.mean(axis=0)) / target_data.std(axis=0)
+                self.gfs_data[self.gfs_target_param] = (target_data - target_data.mean(axis=0)) / target_data.std(
+                    axis=0)
             else:
                 self.gfs_min[self.gfs_target_param] = target_data.min(axis=0)
                 self.gfs_max[self.gfs_target_param] = target_data.max(axis=0)
-                self.gfs_data[self.gfs_target_param] = (target_data - target_data.min(axis=0)) / (target_data.max(axis=0) - target_data.min(axis=0))
+                self.gfs_data[self.gfs_target_param] = (target_data - target_data.min(axis=0)) / (
+                            target_data.max(axis=0) - target_data.min(axis=0))
 
         if self.target_param == "wind_direction":
             # TODO handle this case - as for now we do not use this parameter as target
@@ -271,10 +274,10 @@ class Sequence2SequenceDataModule(SplittableDataModule):
         if self.config.experiment.load_gfs_data:
             synop_data, gfs_data = [item[0] for item in x], [item[1] for item in x]
             synop_data, dates = [[*item[:4], *item[6:]] for item in synop_data], [item[4:6] for item in synop_data]
-            all_data = [*default_collate(synop_data), *default_collate(gfs_data),  *list(zip(*dates))]
+            all_data = [*default_collate(synop_data), *default_collate(gfs_data), *list(zip(*dates))]
         else:
             synop_data, dates = [[*item[:4], *item[6:]] for item in x], [item[4:6] for item in x]
-            all_data = [*default_collate(synop_data),  *list(zip(*dates))]
+            all_data = [*default_collate(synop_data), *list(zip(*dates))]
 
         dict_data = {
             BatchKeys.SYNOP_PAST_Y.value: all_data[0],
@@ -292,8 +295,10 @@ class Sequence2SequenceDataModule(SplittableDataModule):
             dict_data[BatchKeys.GFS_FUTURE_Y.value] = all_data[7]
 
             if self.config.experiment.differential_forecast:
-                target_mean = self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset").mean[self.target_param]
-                target_std = self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset").std[self.target_param]
+                target_mean = self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset").mean[
+                    self.target_param]
+                target_std = self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset").std[
+                    self.target_param]
                 gfs_past_y = dict_data[BatchKeys.GFS_PAST_Y.value] * target_std + target_mean
                 gfs_future_y = dict_data[BatchKeys.GFS_FUTURE_Y.value] * target_std + target_mean
                 synop_past_y = dict_data[BatchKeys.SYNOP_PAST_Y.value].unsqueeze(-1) * target_std + target_mean
@@ -324,7 +329,41 @@ class Sequence2SequenceDataModule(SplittableDataModule):
         new_gfs_features_names.append(self.gfs_target_param)
         return new_gfs_features_names
 
+    # we can check what is the mean GFS error and just add it to target values to improve performance. We assume we know only train data
     def eliminate_gfs_bias(self):
+        train_concat_dataset = self.dataset_train.dataset
+        train_synop_dataset = train_concat_dataset.get_dataset("Sequence2SequenceSynopDataset")
+        target_mean = train_synop_dataset.mean[self.target_param]
+        target_std = train_synop_dataset.std[self.target_param]
+
+        unscaled_diff = self.get_gfs_train_unscaled_diff()
+        self.plot_diff(unscaled_diff, 'train')
+
+        bias = unscaled_diff.mean(axis=0)
+        test_synop_dataset = self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")
+        test_synop_data = test_synop_dataset.synop_data
+        test_gfs_dataset = self.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset")
+        test_gfs_data = test_gfs_dataset.gfs_data
+
+        unscaled_gfs_targets = test_gfs_data[self.gfs_target_param] * target_std + target_mean
+        fixed_gfs_targets = unscaled_gfs_targets + bias
+        test_gfs_data[self.gfs_target_param] = (fixed_gfs_targets - target_mean) / target_std
+
+        test_indices = [test_synop_dataset.data[index] for index in self.dataset_test.indices]
+        all_gfs_data = resolve_indices(test_gfs_data, test_indices,
+                                       self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        gfs_test_targets = all_gfs_data[self.gfs_target_param].values
+        unscaled_gfs_test_targets = gfs_test_targets * target_std + target_mean
+
+        all_synop_data = resolve_indices(test_synop_data, test_indices,
+                                         self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        synop_targets = all_synop_data[self.target_param].values
+
+        test_diff = (synop_targets * target_std + target_mean - unscaled_gfs_test_targets)
+
+        self.plot_diff(test_diff, 'test')
+
+    def get_gfs_train_unscaled_diff(self):
         train_concat_dataset = self.dataset_train.dataset
         train_synop_dataset = train_concat_dataset.get_dataset("Sequence2SequenceSynopDataset")
         train_synop_data = train_synop_dataset.synop_data
@@ -333,7 +372,6 @@ class Sequence2SequenceDataModule(SplittableDataModule):
         target_mean = train_synop_dataset.mean[self.target_param]
         target_std = train_synop_dataset.std[self.target_param]
 
-        # we can check what is the mean GFS error and just add it to target values to improve performance. We assume we know only train data
         train_indices = [train_synop_dataset.data[index] for index in self.dataset_train.indices]
         all_gfs_data = resolve_indices(train_gfs_data, train_indices,
                                        self.sequence_length + self.prediction_offset + self.future_sequence_length)
@@ -342,51 +380,21 @@ class Sequence2SequenceDataModule(SplittableDataModule):
                                          self.sequence_length + self.prediction_offset + self.future_sequence_length)
         synop_targets = all_synop_data[self.target_param].values
 
-        real_gfs_train_targets = gfs_targets * target_std + target_mean
+        unscaled_gfs_train_targets = gfs_targets * target_std + target_mean
 
-        real_diff = (synop_targets * target_std + target_mean - real_gfs_train_targets)
+        return synop_targets * target_std + target_mean - unscaled_gfs_train_targets
 
+    def plot_diff(self, diff: list, dataset_name: str):
         plt.figure(figsize=(20, 10))
         plt.tight_layout()
-        sns.displot(real_diff, bins=100, kde=True)
+        sns.displot(diff, bins=100, kde=True)
         plt.ylabel('Liczebność')
         plt.xlabel('Różnica')
 
         os.makedirs(os.path.join(Path(__file__).parent, "plots"), exist_ok=True)
         plt.savefig(
-            os.path.join(Path(__file__).parent, "plots", f"gfs_diff_{self.config.experiment.target_parameter}_train.png"),
-            dpi=200, bbox_inches='tight')
-
-        bias = real_diff.mean(axis=0)
-        test_synop_dataset = self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")
-        test_synop_data = test_synop_dataset.synop_data
-        test_gfs_dataset = self.dataset_test.dataset.get_dataset("Sequence2SequenceGFSDataset")
-        test_gfs_data = test_gfs_dataset.gfs_data
-
-        real_gfs_targets = test_gfs_data[self.gfs_target_param] * target_std + target_mean
-        fixed_gfs_targets = real_gfs_targets + bias
-        test_gfs_data[self.gfs_target_param] = (fixed_gfs_targets - target_mean) / target_std
-
-        test_indices = [test_synop_dataset.data[index] for index in self.dataset_test.indices]
-        all_gfs_data = resolve_indices(test_gfs_data, test_indices,
-                                       self.sequence_length + self.prediction_offset + self.future_sequence_length)
-        gfs_test_targets = all_gfs_data[self.gfs_target_param].values
-        real_gfs_test_targets = gfs_test_targets * target_std + target_mean
-
-        all_synop_data = resolve_indices(test_synop_data, test_indices,
-                                         self.sequence_length + self.prediction_offset + self.future_sequence_length)
-        synop_targets = all_synop_data[self.target_param].values
-
-        test_diff = (synop_targets * target_std + target_mean - real_gfs_test_targets)
-
-        plt.figure(figsize=(20, 10))
-        plt.tight_layout()
-        sns.displot(test_diff, bins=100, kde=True)
-        plt.ylabel('Liczebność')
-        plt.xlabel('Różnica')
-
-        plt.savefig(
-            os.path.join(Path(__file__).parent, "plots", f"gfs_diff_{self.config.experiment.target_parameter}_test.png"),
+            os.path.join(Path(__file__).parent, "plots",
+                         f"gfs_diff_{self.config.experiment.target_parameter}_{dataset_name}.png"),
             dpi=200, bbox_inches='tight')
 
     def log_dataset_info(self):
@@ -395,31 +403,67 @@ class Sequence2SequenceDataModule(SplittableDataModule):
         log.info('Dataset test len: ' + str(len(self.dataset_test)))
 
         log.info('Dataset train first date: ' +
-                 str(self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_train.indices[0]][4][0]))
+                 str(self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset")[
+                         self.dataset_train.indices[0]][4][0]))
         log.info('Dataset train last date: ' +
-                 str(self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_train.indices[-1]][5][-1]))
+                 str(self.dataset_train.dataset.get_dataset("Sequence2SequenceSynopDataset")[
+                         self.dataset_train.indices[-1]][5][-1]))
         if self.dataset_val is not None:
             log.info('Dataset val first date: ' +
-                     str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_val.indices[0]][4][0]))
+                     str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[
+                             self.dataset_val.indices[0]][4][0]))
             log.info('Dataset val last date: ' +
-                     str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_val.indices[-1]][5][-1]))
+                     str(self.dataset_val.dataset.get_dataset("Sequence2SequenceSynopDataset")[
+                             self.dataset_val.indices[-1]][5][-1]))
         log.info('Dataset test first date: ' +
-                 str(self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_test.indices[0]][4][0]))
+                 str(self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")[
+                         self.dataset_test.indices[0]][4][0]))
         log.info('Dataset test last date: ' +
-                 str(self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")[self.dataset_test.indices[-1]][5][-1]))
+                 str(self.dataset_test.dataset.get_dataset("Sequence2SequenceSynopDataset")[
+                         self.dataset_test.indices[-1]][5][-1]))
 
     def gfs_exploration(self):
-        gfs_data = resolve_indices(self.gfs_data, self.data_indices, self.sequence_length + self.prediction_offset + self.future_sequence_length)
-        synop_data = resolve_indices(self.synop_data, self.data_indices, self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        gfs_data = resolve_indices(self.gfs_data, self.data_indices,
+                                   self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        synop_data = resolve_indices(self.synop_data, self.data_indices,
+                                     self.sequence_length + self.prediction_offset + self.future_sequence_length)
         explore_data_for_each_gfs_param(gfs_data, self.gfs_features_names)
         synop_data = synop_data.rename(
             columns=dict(zip([f[2] for f in self.synop_feature_names], [f[1] for f in self.synop_feature_names])))
         add_angle_from_sin_cos_to_df(synop_data)
         gfs_data[get_gfs_target_param(TEMPERATURE[1])] -= 273.15
         gfs_data[get_gfs_target_param(PRESSURE[1])] /= 100
-        explore_data_bias(synop_data, gfs_data, [
-            (TEMPERATURE[1], 'TMP_HTGL_2'),
-            (VELOCITY_COLUMN[1], 'wind-velocity'),
-            (PRESSURE[1], 'PRES_SFC_0'),
-            (LOWER_CLOUDS[1], 'T CDC_LCY_0')])
+        explore_data_bias(synop_data, gfs_data,
+                          [(TEMPERATURE[1], 'TMP_HTGL_2'),
+                           (VELOCITY_COLUMN[1], 'wind-velocity'),
+                           (PRESSURE[1], 'PRES_SFC_0'),
+                           (LOWER_CLOUDS[1], 'T CDC_LCY_0')
+                           ],
+                          ['gfs_diff_temperature',
+                           'gfs_diff_wind_velocity',
+                           'gfs_diff_pressure',
+                           'gfs_diff_lower_clouds']
+                          )
 
+    def gfs_exploration_test_dataset(self):
+        gfs_data = resolve_indices(self.gfs_data, self.data_indices,
+                                   self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        synop_data = resolve_indices(self.synop_data, self.data_indices,
+                                     self.sequence_length + self.prediction_offset + self.future_sequence_length)
+        explore_data_for_each_gfs_param(gfs_data, self.gfs_features_names)
+        synop_data = synop_data.rename(
+            columns=dict(zip([f[2] for f in self.synop_feature_names], [f[1] for f in self.synop_feature_names])))
+        add_angle_from_sin_cos_to_df(synop_data)
+        gfs_data[get_gfs_target_param(TEMPERATURE[1])] -= 273.15
+        gfs_data[get_gfs_target_param(PRESSURE[1])] /= 100
+        explore_data_bias(synop_data, gfs_data,
+                          [(TEMPERATURE[1], 'TMP_HTGL_2'),
+                           (VELOCITY_COLUMN[1], 'wind-velocity'),
+                           (PRESSURE[1], 'PRES_SFC_0'),
+                           (LOWER_CLOUDS[1], 'T CDC_LCY_0')
+                           ],
+                          ['gfs_diff_temperature',
+                           'gfs_diff_wind_velocity',
+                           'gfs_diff_pressure',
+                           'gfs_diff_lower_clouds']
+                          )

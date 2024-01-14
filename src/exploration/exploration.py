@@ -1,6 +1,5 @@
 import argparse
 import datetime
-from pathlib import Path
 from typing import Tuple, List
 
 import matplotlib.pyplot as plt
@@ -9,10 +8,8 @@ import pandas as pd
 import seaborn as sns
 import wandb
 from tqdm import tqdm
-from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import acf, pacf
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-
 
 from gfs_archive_0_25.gfs_processor.own_logger import get_logger
 from util.coords import Coords
@@ -25,7 +22,8 @@ from wind_forecast.util.gfs_util import GFS_DATASET_DIR, get_available_numpy_fil
 from wind_forecast.util.synop_util import get_correct_dates_for_sequence
 
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 TIME_FORMAT = "%H-%M-%S-%f"
 GFS_PARAMS_CONFIG = {
@@ -102,10 +100,10 @@ GFS_PARAMS_CONFIG = {
       "interpolation": "polynomial"
     },
         {
-      "name": "HGT",
-      "level": "ISBL_500",
-      "interpolation": "polynomial"
-    },
+            "name": "HGT",
+            "level": "ISBL_500",
+            "interpolation": "polynomial"
+        },
         {
       "name": "TMP",
       "level": "ISBL_700",
@@ -135,12 +133,14 @@ GFS_PARAMS_CONFIG = {
 logger = get_logger(os.path.join("explore_results", 'logs.log'))
 results_dir = "explore-results"
 
+
 def get_synop_data(synop_filepath: str):
     if not os.path.exists(synop_filepath):
         raise Exception(f"CSV file with synop data does not exist at path {synop_filepath}.")
 
     data = prepare_synop_dataset(synop_filepath, list(list(zip(*SYNOP_TRAIN_FEATURES))[1]), norm=False,
-                                 dataset_dir=SYNOP_DATASETS_DIRECTORY, from_year=2015, to_year=2022, decompose_periodic=False)
+                                 dataset_dir=SYNOP_DATASETS_DIRECTORY, from_year=2015, to_year=2022,
+                                 decompose_periodic=False)
 
     data["date"] = pd.to_datetime(data[['year', 'month', 'day', 'hour']])
     return data.rename(columns=dict(zip([f[1] for f in SYNOP_TRAIN_FEATURES], [f[2] for f in SYNOP_TRAIN_FEATURES])))
@@ -160,7 +160,8 @@ def get_gfs_data_for_offset(offset=3):
     return df
 
 
-def prepare_gfs_data_with_wind_components(gfs_data: pd.DataFrame, feature_names: List[str]) -> (pd.DataFrame, List[str]):
+def prepare_gfs_data_with_wind_components(gfs_data: pd.DataFrame, feature_names: List[str]) -> (
+pd.DataFrame, List[str]):
     gfs_wind_parameters = ["V GRD_HTGL_10", "U GRD_HTGL_10"]
     [feature_names.remove(param) for param in gfs_wind_parameters]
     gfs_wind_data = gfs_data[gfs_wind_parameters]
@@ -206,7 +207,7 @@ def explore_synop_correlations(data: pd.DataFrame, features: (int, str), localis
         return
     data = data[list(list(zip(*features))[2])]
     plt.figure(figsize=(20, 10))
-    sns.heatmap(data.corr(), annot=True, annot_kws={"fontsize":12})
+    sns.heatmap(data.corr(), annot=True, annot_kws={"fontsize": 12})
     plt.savefig(os.path.join(results_dir, f"synop_{localisation_name}_heatmap.png"), dpi=200)
     plt.close()
 
@@ -286,7 +287,7 @@ def explore_synop_patterns(data: pd.DataFrame, features: List[Tuple[int, str, st
         logger.info(f"Nans in features:\n {[f'{feature}, ' for feature in features_with_nans]}")
 
 
-def plot_diff_hist(diff, xlabel: str, ylabel: str, parameter: str):
+def plot_diff_hist(diff, xlabel: str, ylabel: str, filename: str):
     plt.figure(figsize=(20, 10))
     plt.tight_layout()
     sns.displot(diff, bins=100, kde=True)
@@ -294,12 +295,12 @@ def plot_diff_hist(diff, xlabel: str, ylabel: str, parameter: str):
     plt.xlabel(xlabel)
 
     os.makedirs(results_dir, exist_ok=True)
-    plt.savefig(os.path.join(results_dir, f'gfs_diff_{parameter}_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}.png'), dpi=200, bbox_inches='tight')
-    wandb.log({f'gfs_diff_{parameter}_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}': wandb.Image(plt)})
+    plt.savefig(os.path.join(results_dir, f'{filename}.png'), dpi=200, bbox_inches='tight')
+    wandb.log({f'{filename}': wandb.Image(plt)})
     plt.close()
 
 
-def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str):
+def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str, filename: str):
     plt.figure(figsize=(20, 10))
     plt.tight_layout()
     ax = sns.lineplot(x=x, y=y)
@@ -311,63 +312,66 @@ def plot_diff_by_direction(x, y, xlabel, ylabel, parameter: str):
     ax.set_ylim([-10, 10])
 
     os.makedirs(results_dir, exist_ok=True)
-    plt.savefig(os.path.join(results_dir, f'gfs_diff_{parameter}_by_direction_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}.png'), dpi=200,
-                bbox_inches='tight')
-    wandb.log({f'gfs_diff_{parameter}_by_direction_{datetime.datetime.strftime(datetime.datetime.now(), TIME_FORMAT)}':  wandb.Image(plt)})
+    plt.savefig(os.path.join(results_dir, f'{filename}.png'), dpi=200, bbox_inches='tight')
+    wandb.log({f'{filename}': wandb.Image(plt)})
     plt.close()
 
 
-def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame, features: List[Tuple[str, str]]):
-    for feature in features:
-        if feature[0] == TEMPERATURE[1]:
-            predictions = predicted_data[feature[1]].values
-            synop_targets = all_synop_data[feature[0]].values
+def explore_data_bias(all_synop_data: pd.DataFrame, predicted_data: pd.DataFrame, data_keys_list: List[Tuple[str, str]],
+                      filenames: List[str]):
+    for index, data_keys in enumerate(data_keys_list):
+        if data_keys[0] == TEMPERATURE[1]:
+            predictions = predicted_data[data_keys[1]].values
+            synop_targets = all_synop_data[data_keys[0]].values
 
             diff = predictions - synop_targets
-            plot_diff_hist(diff, 'Różnica, K', 'Liczebność', feature[0])
+            plot_diff_hist(diff, 'Różnica, K', 'Liczebność', filenames[index])
 
             if DIRECTION_COLUMN[1] in all_synop_data.columns:
-                synop_temp = all_synop_data[[feature[0], DIRECTION_COLUMN[1]]]
-                gfs_targets = predicted_data[feature[1]].values
+                synop_temp = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
+                gfs_targets = predicted_data[data_keys[1]].values
 
                 plot_diff_by_direction(x=synop_temp[DIRECTION_COLUMN[1]],
-                                       y=gfs_targets - synop_temp[feature[0]],
+                                       y=gfs_targets - synop_temp[data_keys[0]],
                                        xlabel='Kierunek wiatru, °',
                                        ylabel='Różnica, K',
-                                       parameter=TEMPERATURE[2])
+                                       parameter=TEMPERATURE[2],
+                                       filename=filenames[index] + "_by_direction")
 
-        elif feature[0] == VELOCITY_COLUMN[1]:
-            predictions = predicted_data[feature[1]].values
-            synop_targets = all_synop_data[feature[0]].values
+        elif data_keys[0] == VELOCITY_COLUMN[1]:
+            predictions = predicted_data[data_keys[1]].values
+            synop_targets = all_synop_data[data_keys[0]].values
 
             diff = predictions - synop_targets
-            plot_diff_hist(diff, 'Różnica, m/s', 'Liczebność', feature[0])
+            plot_diff_hist(diff, 'Różnica, m/s', 'Liczebność', filenames[index])
 
             if DIRECTION_COLUMN[1] in all_synop_data.columns:
-                synop_wind = all_synop_data[[feature[0], DIRECTION_COLUMN[1]]]
-                predictions = predicted_data[feature[1]].values
+                synop_wind = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
+                predictions = predicted_data[data_keys[1]].values
 
                 plot_diff_by_direction(x=synop_wind[DIRECTION_COLUMN[1]],
-                                       y=predictions - synop_wind[feature[0]],
+                                       y=predictions - synop_wind[data_keys[0]],
                                        xlabel='Kierunek wiatru, °',
                                        ylabel='Różnica, m/s',
-                                       parameter=VELOCITY_COLUMN[2])
+                                       parameter=VELOCITY_COLUMN[2],
+                                       filename=filenames[index] + "_by_direction")
 
-        elif feature[0] == PRESSURE[1]:
-            predictions = predicted_data[feature[1]].values
-            synop_targets = all_synop_data[feature[0]].values
+        elif data_keys[0] == PRESSURE[1]:
+            predictions = predicted_data[data_keys[1]].values
+            synop_targets = all_synop_data[data_keys[0]].values
             diff = predictions - synop_targets
-            plot_diff_hist(diff, 'Różnica, hPa', 'Liczebność', feature[0])
+            plot_diff_hist(diff, 'Różnica, hPa', 'Liczebność', filenames[index])
 
             if DIRECTION_COLUMN[1] in all_synop_data.columns:
-                synop_temp = all_synop_data[[feature[0], DIRECTION_COLUMN[1]]]
-                predictions = predicted_data[feature[1]].values
+                synop_temp = all_synop_data[[data_keys[0], DIRECTION_COLUMN[1]]]
+                predictions = predicted_data[data_keys[1]].values
 
                 plot_diff_by_direction(x=synop_temp[DIRECTION_COLUMN[1]],
-                                       y=predictions - synop_temp[feature[0]],
+                                       y=predictions - synop_temp[data_keys[0]],
                                        xlabel='Kierunek wiatru, °',
                                        ylabel='Różnica, hPa',
-                                       parameter=PRESSURE[2])
+                                       parameter=PRESSURE[2],
+                                       filename=filenames[index] + "_by_direction")
 
 
 def explore_synop(synop_file: str):
@@ -402,14 +406,20 @@ def main():
 
         explore_data_for_each_gfs_param(gfs_data, feature_names)
         explore_gfs_correlations(gfs_data)
-        all_synop_data = all_synop_data.rename(columns=dict(zip([f[2] for f in SYNOP_TRAIN_FEATURES], [f[1] for f in SYNOP_TRAIN_FEATURES])))
+        all_synop_data = all_synop_data.rename(
+            columns=dict(zip([f[2] for f in SYNOP_TRAIN_FEATURES], [f[1] for f in SYNOP_TRAIN_FEATURES])))
         gfs_data[get_gfs_target_param(TEMPERATURE[1])] -= 273.15
         gfs_data[get_gfs_target_param(PRESSURE[1])] /= 100
-        explore_data_bias(all_synop_data, gfs_data, [
-            (TEMPERATURE[1], 'TMP_HTGL_2'),
-            (VELOCITY_COLUMN[1], 'wind-velocity'),
-            (PRESSURE[1], 'PRES_SFC_0'),
-            (LOWER_CLOUDS[1], 'T CDC_LCY_0')])
+        explore_data_bias(all_synop_data, gfs_data,
+                          [(TEMPERATURE[1], 'TMP_HTGL_2'),
+                           (VELOCITY_COLUMN[1], 'wind-velocity'),
+                           (PRESSURE[1], 'PRES_SFC_0'),
+                           (LOWER_CLOUDS[1], 'T CDC_LCY_0')
+                           ],
+                          ['gfs_diff_temperature',
+                           'gfs_diff_wind_velocity',
+                           'gfs_diff_pressure',
+                           'gfs_diff_lower_clouds'])
     explore_synop(args.synop_csv)
 
 

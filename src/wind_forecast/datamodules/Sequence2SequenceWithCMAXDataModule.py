@@ -87,6 +87,7 @@ class Sequence2SequenceWithCMAXDataModule(Sequence2SequenceDataModule):
 
             self.synop_dates = self.synop_data.loc[self.data_indices]['date'].values
             mean, std, min, max = self.get_cmax_normalization_values(cmax_loader)
+
             cmax_dataset = CMAXDataset(config=self.config, dates=self.synop_dates,
                                        cmax_values=cmax_loader.get_all_loaded_cmax_images(),
                                        normalize=True, use_future_values=self.load_future_cmax)

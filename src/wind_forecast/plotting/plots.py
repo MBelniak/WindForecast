@@ -31,14 +31,17 @@ def plot_predict(system, config: Config, synop_mean, synop_std, gfs_mean, gfs_st
 
     past_dates = system.predict_results['past_dates']
     truth_series = rescale_series(config, truth_series, synop_mean, synop_std, config.experiment.target_parameter)
-    prediction_series = rescale_series(config, prediction_series, synop_mean, synop_std, config.experiment.target_parameter)
+    prediction_series = rescale_series(config, prediction_series, synop_mean, synop_std,
+                                       config.experiment.target_parameter)
 
     ax.plot(prediction_dates, prediction_series, label='prediction')
     if config.experiment.use_gfs_data:
         gfs_out_series = system.predict_results['gfs_targets']
-        gfs_out_series = rescale_series(config, gfs_out_series, gfs_mean, gfs_std, get_gfs_target_param(config.experiment.target_parameter))
+        gfs_out_series = rescale_series(config, gfs_out_series, gfs_mean, gfs_std,
+                                        get_gfs_target_param(config.experiment.target_parameter))
         gfs_past_series = system.predict_results['gfs_past']
-        gfs_past_series = rescale_series(config, gfs_past_series, gfs_mean, gfs_std, get_gfs_target_param(config.experiment.target_parameter))
+        gfs_past_series = rescale_series(config, gfs_past_series, gfs_mean, gfs_std,
+                                         get_gfs_target_param(config.experiment.target_parameter))
         ax.plot(all_dates, np.concatenate([gfs_past_series, gfs_out_series]), label='gfs prediction')
 
     ax.plot(past_dates, truth_series, label='ground truth')
@@ -88,16 +91,17 @@ def plot_random_series(system, config: Config, synop_mean, synop_std, gfs_mean, 
         all_dates = system.test_results['plot_all_dates'][index]
 
         truth_series = rescale_series(config, truth_series, synop_mean, synop_std, config.experiment.target_parameter)
-        prediction_series = rescale_series(config, prediction_series, synop_mean, synop_std, config.experiment.target_parameter)
+        prediction_series = rescale_series(config, prediction_series, synop_mean, synop_std,
+                                           config.experiment.target_parameter)
 
         if config.experiment.use_gfs_data:
             gfs_out_series = system.test_results['plot_gfs_targets'][index]
-            gfs_out_series = rescale_series(config, gfs_out_series, gfs_mean, gfs_std, get_gfs_target_param(config.experiment.target_parameter))
+            gfs_out_series = rescale_series(config, gfs_out_series, gfs_mean, gfs_std,
+                                            get_gfs_target_param(config.experiment.target_parameter))
+            ax.plot(prediction_dates, gfs_out_series, label='gfs prediction')
 
         ax.plot(prediction_dates, prediction_series, label='prediction')
 
-        if config.experiment.use_gfs_data:
-            ax.plot(prediction_dates, gfs_out_series, label='gfs prediction')
         ax.plot(all_dates, truth_series, label='ground truth')
         ax.set_xlabel('Date')
         ax.set_ylabel(config.experiment.target_parameter)
@@ -125,7 +129,8 @@ def plot_scatters(system, config: Config, synop_mean, synop_std, gfs_mean, gfs_s
 
     if config.experiment.use_gfs_data:
         gfs_targets = system.test_results['gfs_targets']
-        gfs_targets = rescale_series(config, gfs_targets, gfs_mean, gfs_std, get_gfs_target_param(config.experiment.target_parameter))
+        gfs_targets = rescale_series(config, gfs_targets, gfs_mean, gfs_std,
+                                     get_gfs_target_param(config.experiment.target_parameter))
 
         plot_scatter(output_series, gfs_targets, "Predykcja modelu", "Predykcja GFS", "scatter_plot_gfs_pred.png")
         plot_scatter(truth_series, gfs_targets, "Wartość rzeczywista", "Predykcja GFS", "scatter_plot_gfs_truth.png")
@@ -142,13 +147,14 @@ def plot_scatter(series_a, series_b, label_a, label_b, filename):
     ]
 
     ax.plot(lims, lims, 'k-', alpha=0.75, color='black')
-    ax.set_xlabel(label_a, fontsize = 18)
+    ax.set_xlabel(label_a, fontsize=18)
     ax.set_ylabel(label_b, fontsize=18)
     ax.tick_params(axis='both', which='major', labelsize=14)
     os.makedirs('plots', exist_ok=True)
     plt.savefig(f'plots/{filename}')
     wandb.log({f'scatter_{filename}': wandb.Image(plt)})
     plt.close()
+
 
 def plot_bias(system, config, synop_mean, synop_std, gfs_mean, gfs_std):
     output_series = system.test_results['output_series']
@@ -158,14 +164,17 @@ def plot_bias(system, config, synop_mean, synop_std, gfs_mean, gfs_std):
     output_series = rescale_series(config, output_series, synop_mean, synop_std, config.experiment.target_parameter)
     truth_series = rescale_series(config, truth_series, synop_mean, synop_std, config.experiment.target_parameter)
     gfs_series = rescale_series(config, gfs_series, gfs_mean, gfs_std,
-                                    get_gfs_target_param(config.experiment.target_parameter))
+                                get_gfs_target_param(config.experiment.target_parameter))
 
-    synop_df = pd.DataFrame(zip(truth_series.flatten(), truth_direction_series.flatten()), columns=[config.experiment.target_parameter, DIRECTION_COLUMN[1]])
+    synop_df = pd.DataFrame(zip(truth_series.flatten(), truth_direction_series.flatten()),
+                            columns=[config.experiment.target_parameter, DIRECTION_COLUMN[1]])
     predictions_df = pd.DataFrame(output_series.flatten(), columns=[config.experiment.target_parameter])
     gfs_df = pd.DataFrame(gfs_series.flatten(), columns=[config.experiment.target_parameter])
     explore_data_bias(synop_df, predictions_df,
-                      [(config.experiment.target_parameter, config.experiment.target_parameter),
-                       (DIRECTION_COLUMN[1], DIRECTION_COLUMN[1])])
+                      [(config.experiment.target_parameter, config.experiment.target_parameter)],
+                      [f"synop_prediction_diff_{config.experiment.target_parameter}"]
+                      )
     explore_data_bias(synop_df, gfs_df,
-                      [(config.experiment.target_parameter, config.experiment.target_parameter),
-                       (DIRECTION_COLUMN[1], DIRECTION_COLUMN[1])])
+                      [(config.experiment.target_parameter, config.experiment.target_parameter)],
+                      [f"synop_gfs_diff_{config.experiment.target_parameter}"]
+                      )

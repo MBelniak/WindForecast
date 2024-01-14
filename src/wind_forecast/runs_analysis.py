@@ -17,6 +17,7 @@ TICK_FONTSIZE = 18
 LABEL_FONTSIZE = 26
 LEGEND_FONTSIZE = 20
 
+
 def run_analysis(config: Config):
     analysis_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                  'config', 'analysis',
@@ -35,98 +36,98 @@ def run_analysis(config: Config):
 
     log.info('Plotting series analyses for runs:')
     [log.info('\t- ' + run['id']) for run in analysis_config.runs]
-    plot_series_comparison(analysis_config.runs, run_summaries, config)
-    plot_rmse_by_step_comparison(analysis_config.runs, run_summaries)
-    plot_mase_by_step_comparison(analysis_config.runs, run_summaries)
+    runs_analysis_plotter = RunsAnalysisPlotter(analysis_config.runs, run_summaries, config)
+    runs_analysis_plotter.plot_series_comparison()
+    runs_analysis_plotter.plot_rmse_by_step_comparison()
+    runs_analysis_plotter.plot_mase_by_step_comparison()
     plot_gfs_corr_comparison()
 
 
-def plot_series_comparison(analysis_config_runs: List, run_summaries: List[Any], config: Config):
-    truth_series = run_summaries[0]['plot_truth']
-    all_dates = run_summaries[0]['plot_all_dates']
-    prediction_dates = run_summaries[0]['plot_prediction_dates']
-    target_mean = run_summaries[0]['target_mean_0'] if 'target_mean_0' in run_summaries[0].keys() else run_summaries[0][
-        'synop_mean'][config.experiment.target_parameter]
-    target_std = run_summaries[0]['target_std_0'] if 'target_std_0' in run_summaries[0].keys() else run_summaries[0][
-        'synop_std'][config.experiment.target_parameter]
+class RunsAnalysisPlotter:
+    def __init__(self, analysis_config_runs: List, run_summaries: List[Any], experiment_config: Config):
+        self.analysis_config_runs = analysis_config_runs
+        self.run_summaries = run_summaries
+        self.experiment_config = experiment_config
+        self.truth_series = run_summaries[0]['plot_truth']
+        self.all_dates = run_summaries[0]['plot_all_dates']
+        self.prediction_dates = run_summaries[0]['plot_prediction_dates']
+        self.target_mean = run_summaries[0]['synop_mean'][experiment_config.experiment.target_parameter]
+        self.target_std = run_summaries[0]['synop_std'][experiment_config.experiment.target_parameter]
 
-    for series_index in range(len(truth_series)):
+    @staticmethod
+    def plot_line(ax, x, y, run):
+        ax.plot(x, y, linewidth=4 if run['axis_label'] == 'GFS' else 1, label=run['axis_label'], marker=next(marker))
+
+    def plot_series_comparison(self):
+        for series_index in range(len(self.truth_series)):
+            fig, ax = plt.subplots(figsize=(30, 15))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y %H:%M'))
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+            truth = (np.array(self.truth_series[series_index]) * self.target_std + self.target_mean).tolist()
+            ax.plot([datetime.strptime(date, '%Y-%m-%dT%H:%M:%S') for date in self.all_dates[series_index]],
+                    truth, label='Wartość rzeczywista', linewidth=4)
+
+            for index, run in enumerate(self.run_summaries):
+                prediction_series = run['plot_prediction'][series_index]
+                prediction_series = (np.array(prediction_series) * self.target_std + self.target_mean).tolist()
+                self.plot_line(ax, [datetime.strptime(date, '%Y-%m-%dT%H:%M:%S') for date in self.prediction_dates[series_index]],
+                               prediction_series, self.analysis_config_runs[index])
+
+            middle_date = datetime.strptime(self.prediction_dates[series_index][-24], '%Y-%m-%dT%H:%M:%S')
+            plt.plot([middle_date, middle_date], [ax.get_ylim()[0], ax.get_ylim()[1]], linewidth=2, color='red',
+                     linestyle='dashed')
+            ax.annotate('t=T+1', xy=(.5, .85), xycoords='figure fraction', fontsize=22)
+
+            ax.set_ylabel(self.experiment_config.analysis.target_parameter, fontsize=LABEL_FONTSIZE)
+            ax.set_xlabel('Data', fontsize=LABEL_FONTSIZE)
+            ax.legend(loc='best', prop={'size': LEGEND_FONTSIZE})
+            ax.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
+            plt.gcf().autofmt_xdate()
+            os.makedirs('analysis', exist_ok=True)
+            plt.savefig(f'analysis/series_comparison_{series_index}.png')
+            plt.close()
+
+        log.info(f'Series comparisons logged to {os.environ["RUN_DIR"]}/analysis directory')
+
+    def plot_rmse_by_step_comparison(self):
         fig, ax = plt.subplots(figsize=(30, 15))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y %H:%M'))
-        ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-        truth = (np.array(truth_series[series_index]) * target_std + target_mean).tolist()
-        ax.plot([datetime.strptime(date, '%Y-%m-%dT%H:%M:%S') for date in all_dates[series_index]],
-                truth, label='Wartość rzeczywista', linewidth=4)
 
-        for index, run in enumerate(run_summaries):
-            prediction_series = run['plot_prediction'][series_index]
-            prediction_series = (np.array(prediction_series) * target_std + target_mean).tolist()
-            ax.plot([datetime.strptime(date, '%Y-%m-%dT%H:%M:%S') for date in prediction_dates[series_index]],
-                    prediction_series,
-                    linewidth=4 if analysis_config_runs[index]['axis_label'] == 'GFS' else 1,
-                    label=analysis_config_runs[index]['axis_label'], marker=next(marker))
+        for index, run in enumerate(self.run_summaries):
+            rmse_by_step = run['rmse_by_step']
+            self.plot_line(ax, np.arange(1, len(rmse_by_step) + 1),
+                           rmse_by_step, self.analysis_config_runs[index])
 
-        middle_date = datetime.strptime(prediction_dates[series_index][-24], '%Y-%m-%dT%H:%M:%S')
-        plt.plot([middle_date, middle_date], [ax.get_ylim()[0], ax.get_ylim()[1]], linewidth=2, color='red',
-                 linestyle='dashed')
-        ax.annotate('t=T+1', xy=(.5, .85), xycoords='figure fraction', fontsize=22)
-
-        # Labels hardcoded for now
-        ax.set_ylabel(config.analysis.target_parameter, fontsize=LABEL_FONTSIZE)
-        ax.set_xlabel('Data', fontsize=LABEL_FONTSIZE)
+        ax.set_ylabel('RMSE', fontsize=LABEL_FONTSIZE)
+        ax.set_xlabel('Krok', fontsize=LABEL_FONTSIZE)
         ax.legend(loc='best', prop={'size': LEGEND_FONTSIZE})
+        plt.xticks([1, 5, 10, 15, 20, 24])
         ax.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+
         os.makedirs('analysis', exist_ok=True)
-        plt.savefig(f'analysis/series_comparison_{series_index}.png')
+        plt.savefig(f'analysis/rmse_by_step_comparison.png')
         plt.close()
+        log.info(f'RMSE comparison logged to {os.environ["RUN_DIR"]}/analysis directory')
 
-    log.info(f'Series comparisons logged to {os.environ["RUN_DIR"]}/analysis directory')
+    def plot_mase_by_step_comparison(self):
+        fig, ax = plt.subplots(figsize=(30, 15))
 
+        for index, run in enumerate(self.run_summaries):
+            mase_by_step = run['mase_by_step']
 
-def plot_rmse_by_step_comparison(analysis_config_runs: List, run_summaries: List[Any]):
-    fig, ax = plt.subplots(figsize=(30, 15))
+            self.plot_line(ax, np.arange(1, len(mase_by_step) + 1),
+                           mase_by_step, self.analysis_config_runs[index])
 
-    for index, run in enumerate(run_summaries):
-        rmse_by_step = run['rmse_by_step']
-
-        ax.plot(np.arange(1, len(rmse_by_step) + 1), rmse_by_step, marker=next(marker), linestyle='solid',
-                linewidth=4 if analysis_config_runs[index]['axis_label'] == 'GFS' else 1,
-                label=analysis_config_runs[index]['axis_label'])
-
-    ax.set_ylabel('RMSE', fontsize=LABEL_FONTSIZE)
-    ax.set_xlabel('Krok', fontsize=LABEL_FONTSIZE)
-    ax.legend(loc='best', prop={'size': LEGEND_FONTSIZE})
-    plt.xticks([1, 5, 10, 15, 20, 24])
-    ax.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE)
-    plt.tight_layout()
-
-    os.makedirs('analysis', exist_ok=True)
-    plt.savefig(f'analysis/rmse_by_step_comparison.png')
-    plt.close()
-    log.info(f'RMSE comparison logged to {os.environ["RUN_DIR"]}/analysis directory')
-
-
-def plot_mase_by_step_comparison(analysis_config_runs: List, run_summaries: List[Any]):
-    fig, ax = plt.subplots(figsize=(30, 15))
-
-    for index, run in enumerate(run_summaries):
-        mase_by_step = run['mase_by_step']
-
-        ax.plot(np.arange(1, len(mase_by_step) + 1), mase_by_step, marker=next(marker), linestyle='solid',
-                linewidth=4 if analysis_config_runs[index]['axis_label'] == 'GFS' else 1,
-                label=analysis_config_runs[index]['axis_label'])
-
-    ax.set_ylabel('MASE', fontsize=LABEL_FONTSIZE)
-    ax.set_xlabel('Krok', fontsize=LABEL_FONTSIZE)
-    ax.legend(loc='best', prop={'size': LEGEND_FONTSIZE})
-    plt.xticks([1, 5, 10, 15, 20, 24])
-    ax.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE, labelright=True)
-    plt.tight_layout()
-    os.makedirs('analysis', exist_ok=True)
-    plt.savefig(f'analysis/mase_by_step_comparison.png')
-    log.info(f'MASE comparison logged to {os.environ["RUN_DIR"]}/analysis directory')
-    plt.close()
+        ax.set_ylabel('MASE', fontsize=LABEL_FONTSIZE)
+        ax.set_xlabel('Krok', fontsize=LABEL_FONTSIZE)
+        ax.legend(loc='best', prop={'size': LEGEND_FONTSIZE})
+        plt.xticks([1, 5, 10, 15, 20, 24])
+        ax.tick_params(axis='both', which='major', labelsize=TICK_FONTSIZE, labelright=True)
+        plt.tight_layout()
+        os.makedirs('analysis', exist_ok=True)
+        plt.savefig(f'analysis/mase_by_step_comparison.png')
+        log.info(f'MASE comparison logged to {os.environ["RUN_DIR"]}/analysis directory')
+        plt.close()
 
 
 def plot_gfs_corr_comparison():
