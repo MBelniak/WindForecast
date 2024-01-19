@@ -98,6 +98,6 @@ def add_angle_from_sin_cos_to_df(data: pd.DataFrame):
     sin_cos = data[get_feature_names_after_periodic_reduction([DIRECTION_COLUMN[1]])].values
     cos = [x[0] for x in sin_cos]
     sin = [x[1] for x in sin_cos]
-    angle = np.array([math.atan2(s, c) * 180 / math.pi for s, c in zip(sin, cos)])
+    angle = np.array([round(math.atan2(s, c) * 180 / math.pi) for s, c in zip(sin, cos)])
     angle[np.where(angle < 0)] = angle[np.where(angle < 0)] + 360
     data[DIRECTION_COLUMN[1]] = angle

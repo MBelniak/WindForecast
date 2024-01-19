@@ -303,7 +303,7 @@ def plot_diff_hist(diff, xlabel: str, ylabel: str, filename: str):
 def plot_diff_by_wind_direction(x, y, xlabel, ylabel, parameter: str, filename: str):
     plt.figure(figsize=(20, 10))
     plt.tight_layout()
-    ax = sns.lineplot(x=x, y=y)
+    ax = sns.lineplot(x=x, y=y, errorbar=('sd', 0.5))
     plt.plot([0, 360], [0, 0], linewidth=2, color='red')
     plt.xlabel(xlabel, fontsize=22)
     plt.ylabel(ylabel, fontsize=22)
@@ -320,7 +320,7 @@ def plot_diff_by_wind_direction(x, y, xlabel, ylabel, parameter: str, filename: 
 def plot_diff_by_wind_velocity(x, y, xlabel, ylabel, parameter: str, filename: str):
     plt.figure(figsize=(20, 10))
     plt.tight_layout()
-    ax = sns.lineplot(x=x, y=y)
+    ax = sns.lineplot(x=x, y=y, errorbar=('sd', 0.5))
     plt.plot([0, 360], [0, 0], linewidth=2, color='red')
     plt.xlabel(xlabel, fontsize=22)
     plt.ylabel(ylabel, fontsize=22)
